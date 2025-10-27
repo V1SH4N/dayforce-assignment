@@ -1,0 +1,10 @@
+{
+"SpaProxyServer": {
+"ServerUrl": "https://localhost:62867",
+"RedirectUrl": "",
+"LaunchCommand": "npm run dev",
+"WorkingDirectory": "C:\\Users\\P12C7E3\\repos\\dayforce-assignment\\dayforce_assignment.Server\\..\\dayforce_assignment.client",
+"MaxTimeoutInSeconds": "120",
+"KeepRunning": "false"
+}
+}

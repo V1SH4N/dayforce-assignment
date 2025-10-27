@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36603.0 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "dayforce_assignment.client", "dayforce_assignment.client\dayforce_assignment.client.esproj", "{67B9C8AF-7F70-7B2B-CBB2-63E460E01ADF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dayforce_assignment.Server", "dayforce_assignment.Server\dayforce_assignment.Server.csproj", "{E8CDCFAA-E650-477D-9C91-90C63021A165}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{67B9C8AF-7F70-7B2B-CBB2-63E460E01ADF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{67B9C8AF-7F70-7B2B-CBB2-63E460E01ADF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{67B9C8AF-7F70-7B2B-CBB2-63E460E01ADF}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{67B9C8AF-7F70-7B2B-CBB2-63E460E01ADF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{67B9C8AF-7F70-7B2B-CBB2-63E460E01ADF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{67B9C8AF-7F70-7B2B-CBB2-63E460E01ADF}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{E8CDCFAA-E650-477D-9C91-90C63021A165}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E8CDCFAA-E650-477D-9C91-90C63021A165}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E8CDCFAA-E650-477D-9C91-90C63021A165}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E8CDCFAA-E650-477D-9C91-90C63021A165}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B447E102-6723-4A41-B9A0-20C881089633}
+	EndGlobalSection
+EndGlobal
