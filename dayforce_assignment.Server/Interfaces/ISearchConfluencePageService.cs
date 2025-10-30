@@ -2,6 +2,6 @@
 {
     public interface ISearchConfluencePageService
     {
-        Task<string> SearchPageAsync(string keywords);
+        Task<string> SearchConfluencePageAsync(string keywords);
     }
 }

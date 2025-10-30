@@ -10,7 +10,7 @@ namespace dayforce_assignment.Server.Services
         {
             _httpClientFactory = httpClientFactory;
         }
-        public async Task<string> SearchPageAsync(string cql)
+        public async Task<string> SearchConfluencePageAsync(string cql)
         {
             var httpClient = _httpClientFactory.CreateClient("dayforce");
 

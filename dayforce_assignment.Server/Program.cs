@@ -33,8 +33,11 @@ builder.Services.AddHttpClient("test", client =>
 // Inject JiraStoryService 
 builder.Services.AddScoped<IJiraStoryService, JiraStoryService>(); // need to check scope of service, added as scoped for now
 
-// Inject SearchConfluenceService
+// Inject SearchConfluencePageService
 builder.Services.AddScoped<ISearchConfluencePageService, SearchConfluencePageService>();
+
+// Inject ConfluencePageService
+builder.Services.AddScoped<IConfluencePageService, ConfluencePageService>();
 
 
 builder.Services.AddControllers();

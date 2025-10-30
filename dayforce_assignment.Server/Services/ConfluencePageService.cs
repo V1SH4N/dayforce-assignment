@@ -1,26 +1,20 @@
 ﻿using dayforce_assignment.Server.Interfaces;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using System.Net.Http;
-using System.Text.Json;
 
 namespace dayforce_assignment.Server.Services
 {
-    public class JiraStoryService : IJiraStoryService
+    public class ConfluencePageService : IConfluencePageService
     {
         private readonly IHttpClientFactory _httpClientFactory;
 
-        public JiraStoryService(IHttpClientFactory httpClientFactory)
+        public ConfluencePageService(IHttpClientFactory httpClientFactory)
         {
             _httpClientFactory = httpClientFactory;
         }
-        public async Task<string> GetJiraStoryAsync(string jiraId)
+        public async Task<string> GetConfluencePageAsync(string id)
         {
             var httpClient = _httpClientFactory.CreateClient("dayforce");
 
-            var httpResponseMessage = await httpClient.GetAsync($"rest/api/3/issue/{jiraId}");
-
+            var httpResponseMessage = await httpClient.GetAsync($"wiki/api/v2/pages/{id}?body-format=storage");
             //httpResponseMessage.EnsureSuccessStatusCode();
             var json = await httpResponseMessage.Content.ReadAsStringAsync();
             return json;

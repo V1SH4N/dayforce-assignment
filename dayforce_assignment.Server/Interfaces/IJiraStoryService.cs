@@ -2,6 +2,6 @@
 {
     public interface IJiraStoryService
     {
-        Task<string> FetchJiraStoryAsync (string jiraId);
+        Task<string> GetJiraStoryAsync (string jiraId);
     }
 }
