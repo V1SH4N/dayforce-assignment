@@ -12,7 +12,6 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 {
     public class UserPromptBuilder : IUserPromptBuilder
     {
-        private readonly Kernel _kernel;
         private readonly IJiraStoryService _jiraStoryService;
         private readonly IJiraStoryCleaner _jiraStoryCleaner;
         private readonly IConfluencePageReferenceExtractor _confluencePageReferenceExtractor;
@@ -23,7 +22,6 @@ namespace dayforce_assignment.Server.Services.Orchestrator
         private readonly IAttachmentDownloadService _attachmentDownloadService;
 
         public UserPromptBuilder(
-            Kernel kernel,
             IJiraStoryService jiraStoryService,
             IJiraStoryCleaner jiraStoryCleaner,
             IConfluencePageReferenceExtractor confluencePageReferenceExtractor,
@@ -34,7 +32,6 @@ namespace dayforce_assignment.Server.Services.Orchestrator
             IAttachmentDownloadService attachmentDownloadService
             )
         {
-            _kernel = kernel;
             _jiraStoryService = jiraStoryService;
             _jiraStoryCleaner = jiraStoryCleaner;
             _confluencePageReferenceExtractor = confluencePageReferenceExtractor;
@@ -47,9 +44,6 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 
         public async Task<ChatHistory> BuildUserPromptAsync(string jiraId)
         {
-            var kernelInstance = _kernel.Clone();
-            var chatService = kernelInstance.GetRequiredService<IChatCompletionService>();
-
             var history = new ChatHistory();
 
             // Jira Story
@@ -60,7 +54,7 @@ namespace dayforce_assignment.Server.Services.Orchestrator
             history.AddUserMessage("Jira story:");
             history.AddUserMessage(JsonSerializer.Serialize(cleanedJiraStory));
 
-            if (cleanedJiraStory.Attachments != null && cleanedJiraStory.Attachments.Count != 0) // need to verify this check
+            if (cleanedJiraStory.Attachments?.Count > 0)
             {
                 foreach (string downloadLink in cleanedJiraStory.Attachments)
                 {
@@ -69,11 +63,11 @@ namespace dayforce_assignment.Server.Services.Orchestrator
                 }
             }
 
-            // Confluence Pages
+            // Confluence Page(s)
 
-            ConfluencePageReferenceDto confluencePageReferences = await _confluencePageReferenceExtractor.GetConfluencePageReferencesAsync(cleanedJiraStory);
+            ConfluencePageReferencesDto confluencePageReferences = await _confluencePageReferenceExtractor.GetConfluencePageReferencesAsync(cleanedJiraStory);
 
-            if (confluencePageReferences.ConfluencePages != null && confluencePageReferences.ConfluencePages.Count != 0)
+            if (confluencePageReferences.ConfluencePages?.Count > 0)
             {
                 
                 foreach (ConfluencePage confluencePage in confluencePageReferences.ConfluencePages)
@@ -88,7 +82,7 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 
                     ConfluencePageAttachmentsDto cleanedConfluencePageAttachments = _confluenceAttachmentsCleaner.CleanConfluenceAttachments(rawConfluencePageAttachments);
 
-                    if (cleanedConfluencePageAttachments.Attachments != null && cleanedConfluencePageAttachments.Attachments.Count != 0)  // need to verify this check
+                    if (confluencePageReferences?.ConfluencePages?.Count > 0)
                     {
                         foreach (Attachment attachment in cleanedConfluencePageAttachments.Attachments)
                         {
@@ -98,9 +92,13 @@ namespace dayforce_assignment.Server.Services.Orchestrator
                     }
                 }
             }
+            else
+            {
+                Console.WriteLine("this part handles searching for additional confluence pages");
+            }
 
 
-            return history;
+                return history;
 
         }
     }

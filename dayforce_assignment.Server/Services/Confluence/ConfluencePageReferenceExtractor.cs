@@ -1,7 +1,6 @@
 ﻿using dayforce_assignment.Server.DTOs.Confluence;
 using dayforce_assignment.Server.DTOs.Jira;
 using dayforce_assignment.Server.Interfaces.Confluence;
-using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text.Json;
 
@@ -9,19 +8,17 @@ namespace dayforce_assignment.Server.Services.Confluence
 {
     public class ConfluencePageReferenceExtractor : IConfluencePageReferenceExtractor
     {
-        private readonly Kernel _kernel;
+        private readonly IChatCompletionService _chatCompletionService;
 
-        public ConfluencePageReferenceExtractor(Kernel kernel)
+        public ConfluencePageReferenceExtractor(IChatCompletionService chatCompletionService)
         {
-            _kernel = kernel;
+            _chatCompletionService = chatCompletionService;
         }
 
-        public async Task<ConfluencePageReferenceDto> GetConfluencePageReferencesAsync(JiraStoryDto jiraStory)
+        public async Task<ConfluencePageReferencesDto> GetConfluencePageReferencesAsync(JiraStoryDto jiraStory)
         {
-            var kernelInstance = _kernel.Clone();
-            var chatService = kernelInstance.GetRequiredService<IChatCompletionService>();
-
             var history = new ChatHistory();
+
             history.AddSystemMessage("""
                 The user will upload a Jira user story in JSON format.
 
@@ -57,7 +54,7 @@ namespace dayforce_assignment.Server.Services.Confluence
             string jiraStoryJson = JsonSerializer.Serialize(jiraStory);
             history.AddUserMessage(jiraStoryJson);
 
-            var result = await chatService.GetChatMessageContentAsync(history);
+            var result = await _chatCompletionService.GetChatMessageContentAsync(history);
             var text = result?.ToString()?.Trim();
 
             if (string.IsNullOrWhiteSpace(text))
@@ -70,7 +67,7 @@ namespace dayforce_assignment.Server.Services.Confluence
                     PropertyNameCaseInsensitive = true
                 };
 
-                var dto = JsonSerializer.Deserialize<ConfluencePageReferenceDto>(text, options);
+                var dto = JsonSerializer.Deserialize<ConfluencePageReferencesDto>(text, options);
 
                 if (dto == null)
                     throw new JsonException("Failed to deserialize ConfluencePageIdDto.");

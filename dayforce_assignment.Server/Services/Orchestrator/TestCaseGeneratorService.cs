@@ -1,5 +1,4 @@
 ﻿using dayforce_assignment.Server.Interfaces.Orchestrator;
-using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text.Json;
 
@@ -9,19 +8,15 @@ namespace dayforce_assignment.Server.Services.Orchestrator
     public class TestCaseGeneratorService: ITestCaseGeneratorService
     {
         private readonly IUserPromptBuilder _userPromptBuilder;
-        private readonly Kernel _kernel;
-
-        public TestCaseGeneratorService(IUserPromptBuilder userPromptBuilder, Kernel kernel)
+        private readonly IChatCompletionService _chatCompletionService;
+        public TestCaseGeneratorService(IUserPromptBuilder userPromptBuilder, IChatCompletionService chatCompletionService)
         {
-            _kernel = kernel;
+            _chatCompletionService = chatCompletionService;
             _userPromptBuilder = userPromptBuilder;
         }
 
         public async Task<JsonElement> GenerateTestCases(string JiraId)
         {
-            var kernelInstance = _kernel.Clone();
-            var chatService = kernelInstance.GetRequiredService<IChatCompletionService>();
-
             ChatHistory history = await _userPromptBuilder.BuildUserPromptAsync(JiraId);
 
             history.AddSystemMessage("""
@@ -103,17 +98,16 @@ namespace dayforce_assignment.Server.Services.Orchestrator
                 ### Expected Output
                 A structured, clear, and comprehensive set of test cases (positive, negative, boundary, and edge) derived from the given Jira story JSON.
                 Output should be Json format only.Do not include any markdow code blocks
-                Note in the jsonhave a seperate field to name all the confluence pages considered.Give the links as well
+                Note in the jsonhave a seperate field to name all the confluence pages considered iof there are any.Give the links as well
                 """);
 
 
             // Need to implement temperature settings for AI model
 
-            var result = await chatService.GetChatMessageContentAsync(history);
+            var result = await _chatCompletionService.GetChatMessageContentAsync(history);
 
             using var doc = JsonDocument.Parse(result.Content);
             return doc.RootElement.Clone();
-
         }
     }
 }

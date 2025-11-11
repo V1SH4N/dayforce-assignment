@@ -1,7 +1,8 @@
 ﻿using dayforce_assignment.Server.DTOs.Confluence;
 using dayforce_assignment.Server.Interfaces.Confluence;
+using HtmlAgilityPack;
+using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Web;
 
 namespace dayforce_assignment.Server.Services.Confluence
@@ -10,68 +11,79 @@ namespace dayforce_assignment.Server.Services.Confluence
     {
         public ConfluencePageDto CleanConfluencePage(JsonElement payload)
         {
-            if (payload.ValueKind == JsonValueKind.Undefined || payload.ValueKind == JsonValueKind.Null)
+            if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
                 return new ConfluencePageDto();
 
-            try
+            var dto = new ConfluencePageDto
             {
-                var dto = new ConfluencePageDto
-                {
-                    Id = payload.TryGetProperty("id", out var idProp) ? idProp.GetString() : null,
-                    Title = payload.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null,
-                    BodyStorageValue = ExtractBodyValue(payload)
-                };
+                Id = payload.TryGetProperty("id", out var idProp) ? idProp.GetString() : null,
+                Title = payload.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null,
+                BodyStorageValue = CleanHtml(ExtractBodyValue(payload))
+            };
 
-                // Clean HTML content if found
-                dto.BodyStorageValue = CleanHtml(dto.BodyStorageValue ?? string.Empty);
-
-                return dto;
-            }
-            catch
-            {
-                return new ConfluencePageDto();
-            }
+            return dto;
         }
 
-        private string? ExtractBodyValue(JsonElement root)
+        private static string ExtractBodyValue(JsonElement root)
         {
-            try
+            if (root.TryGetProperty("body", out var bodyProp) &&
+                bodyProp.TryGetProperty("storage", out var storageProp) &&
+                storageProp.TryGetProperty("value", out var valueProp))
             {
-                if (root.TryGetProperty("body", out var bodyProp) &&
-                    bodyProp.TryGetProperty("storage", out var storageProp) &&
-                    storageProp.TryGetProperty("value", out var valueProp))
-                {
-                    return valueProp.GetString();
-                }
-                return null;
+                return valueProp.GetString() ?? string.Empty;
             }
-            catch
-            {
-                return null;
-            }
+
+            return string.Empty;
         }
 
         /// <summary>
-        /// Removes Confluence macros, HTML tags, and decodes entities.
+        /// Cleans HTML using HtmlAgilityPack: removes Confluence macros, scripts, and style elements, then extracts visible text.
         /// </summary>
-        private string CleanHtml(string html)
+        private static string CleanHtml(string html)
         {
             if (string.IsNullOrWhiteSpace(html))
                 return string.Empty;
 
-            // Remove Confluence macros and embedded elements
-            html = Regex.Replace(html, @"<ac:.*?>.*?</ac:.*?>", string.Empty, RegexOptions.Singleline);
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
 
-            // Remove HTML tags
-            html = Regex.Replace(html, "<.*?>", string.Empty);
+            // Remove all Confluence macros (ac:macro) and other unwanted elements
+            RemoveNodes(doc.DocumentNode, "//*[local-name()='macro'] | //script | //style");
 
-            // Decode HTML entities (e.g., &amp; → &)
-            html = HttpUtility.HtmlDecode(html);
+            // Extract all visible text
+            var sb = new StringBuilder();
+            var textNodes = doc.DocumentNode.SelectNodes("//text()");
+            if (textNodes != null)
+            {
+                foreach (var textNode in textNodes)
+                {
+                    var text = textNode.InnerText;
+                    if (!string.IsNullOrWhiteSpace(text))
+                        sb.AppendLine(text.Trim());
+                }
+            }
 
-            // Trim excess whitespace
-            html = html.Trim();
+            // Decode HTML entities and trim
+            return HttpUtility.HtmlDecode(sb.ToString().Trim());
+        }
 
-            return html;
+        /// <summary>
+        /// Helper to remove nodes matching XPath
+        /// </summary>
+        private static void RemoveNodes(HtmlNode root, string xPath)
+        {
+            var nodes = root.SelectNodes(xPath);
+            if (nodes != null)
+            {
+                foreach (var node in nodes)
+                {
+                    node.Remove();
+                }
+            }
         }
     }
 }
+
+
+
+
