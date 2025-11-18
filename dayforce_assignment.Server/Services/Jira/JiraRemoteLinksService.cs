@@ -3,25 +3,25 @@ using dayforce_assignment.Server.Interfaces.Jira;
 using System.Net;
 using System.Text.Json;
 
-public class JiraStoryService : IJiraStoryService
+public class JiraRemoteLinksService : IJiraRemoteLinksService
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly string _jiraBaseUrl;
 
-    public JiraStoryService(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+    public JiraRemoteLinksService(IHttpClientFactory httpClientFactory, IConfiguration configuration)
     {
         _httpClientFactory = httpClientFactory;
         _jiraBaseUrl = configuration["Atlassian:BaseUrl"]
-            ?? throw new ArgumentNullException("Atlassian base URL is not configured");
+            ?? throw new ArgumentNullException("Jira base URL is not configured");
     }
 
-    public async Task<JsonElement> GetJiraStoryAsync(string jiraId)
+    public async Task<JsonElement> GetJiraRemoteLinksAsync(string jiraId)
     {
         var client = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
 
         try
         {
-            var response = await client.GetAsync(new Uri(new Uri(_jiraBaseUrl), $"rest/api/3/issue/{jiraId}"));
+            var response = await client.GetAsync(new Uri(new Uri(_jiraBaseUrl), $"rest/api/3/issue/{jiraId}/remotelink"));
 
             if (response.StatusCode == HttpStatusCode.OK)
             {
@@ -30,7 +30,7 @@ public class JiraStoryService : IJiraStoryService
                     throw new ApiException(
                         StatusCodes.Status502BadGateway,
                         "Jira API returned empty response",
-                        internalMessage: "Received empty JSON from Jira API.");
+                        internalMessage: "Received empty JSON from Jira Remote Links API.");
 
                 return json;
             }
@@ -40,7 +40,7 @@ public class JiraStoryService : IJiraStoryService
                 HttpStatusCode.NotFound => new ApiException(
                     StatusCodes.Status404NotFound,
                     "The requested Jira story could not be found.",
-                    internalMessage: $"Jira story '{jiraId}' was not found."),
+                    internalMessage: $"Jira story '{jiraId}' remote links not found."),
 
                 HttpStatusCode.Unauthorized => new ApiException(
                     StatusCodes.Status401Unauthorized,
@@ -62,7 +62,7 @@ public class JiraStoryService : IJiraStoryService
                 _ => new ApiException(
                     (int)response.StatusCode,
                     $"Unexpected status code {(int)response.StatusCode} from Jira API",
-                    internalMessage: $"Unexpected response from Jira API")
+                    internalMessage: $"Unexpected response from Jira Remote Links API")
             };
         }
         catch (HttpRequestException ex)

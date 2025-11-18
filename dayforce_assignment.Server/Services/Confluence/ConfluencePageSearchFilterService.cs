@@ -1,5 +1,7 @@
 ﻿using dayforce_assignment.Server.DTOs.Confluence;
 using dayforce_assignment.Server.DTOs.Jira;
+using dayforce_assignment.Server.Exceptions.ApiExceptions;
+using dayforce_assignment.Server.Interfaces.Common;
 using dayforce_assignment.Server.Interfaces.Confluence;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text.Json;
@@ -9,51 +11,92 @@ namespace dayforce_assignment.Server.Services.Confluence
     public class ConfluencePageSearchFilterService : IConfluencePageSearchFilterService
     {
         private readonly IChatCompletionService _chatCompletionService;
+        private readonly IJsonFormatterService _jsonFormatterService;
 
-        public ConfluencePageSearchFilterService(IChatCompletionService chatCompletionService)
+        public ConfluencePageSearchFilterService(
+            IChatCompletionService chatCompletionService,
+            IJsonFormatterService jsonFormatterService)
         {
-            _chatCompletionService = chatCompletionService;
+            _chatCompletionService = chatCompletionService 
+                ?? throw new ArgumentNullException(nameof(chatCompletionService));
+            _jsonFormatterService = jsonFormatterService 
+                ?? throw new ArgumentNullException(nameof(jsonFormatterService));
         }
 
-        public async Task<ConfluenceSearchResultsDto> FilterSearchResultAsync(JiraStoryDto jiraStory, ConfluenceSearchResultsDto searchResults)
+        public async Task<ConfluenceSearchResultsDto> FilterSearchResultAsync(
+            JiraStoryDto jiraStory, 
+            ConfluenceSearchResultsDto searchResults)
         {
-            var history = new ChatHistory("""
-                    You are an AI assistant that filters Confluence pages based on a Jira story.
+            if (jiraStory == null)
+            {
+                throw new ApiException(
+                    StatusCodes.Status400BadRequest,
+                    "Invalid Jira story input",
+                    internalMessage: "jiraStory is null in FilterSearchResultAsync");
+            }
 
-                    Task:
-                    1. You will receive a Jira story (title, description, acceptance criteria) in JSON.
-                    2. You will also receive a list of Confluence pages (each with id and title) in JSON.
-                    3. Identify which pages are relevant to the Jira story based on the title.
-                    4. Output **only a JSON object** with the relevant pages, including Id and Title.
+            if (searchResults == null)
+            {
+                throw new ApiException(
+                    StatusCodes.Status400BadRequest,
+                    "Invalid search results input",
+                    internalMessage: "searchResults is null in FilterSearchResultAsync");
+            }
 
-                    Output format:
-                    {
-                      "ConfluencePagesMetadata": [
-                        { "id": "<relevant_page_id>", "title": "<page_title>" },
-                        { "id": "<another_relevant_page_id>", "title": "<page_title>" }
-                      ]
-                    }
+            try
+            {
+                var history = new ChatHistory();
 
-                    Rules:
-                    - Include only pages that appear to be relevant. If unsure, include pages that might match closely.
-                    - Do not include extra text outside the JSON object.
-                    - Preserve the original titles in the output.
-                
-                """);
-            history.AddSystemMessage("temp");
+                string systemPrompt = File.ReadAllText("SystemPrompts/ConfluencePageSearchFilter.txt");
 
-            history.AddUserMessage(JsonSerializer.Serialize(jiraStory));
-            history.AddUserMessage(JsonSerializer.Serialize(searchResults));
+                history.AddSystemMessage(systemPrompt);
 
-            var response = await _chatCompletionService.GetChatMessageContentAsync(history);
-            var text = response?.ToString()?.Trim();
+                history.AddUserMessage(JsonSerializer.Serialize(jiraStory));
+                history.AddUserMessage(JsonSerializer.Serialize(searchResults));
 
-            var filteredSearchResults = new ConfluenceSearchResultsDto();
+                var response = await _chatCompletionService.GetChatMessageContentAsync(history);
 
-            filteredSearchResults = JsonSerializer.Deserialize<ConfluenceSearchResultsDto>(text,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new ConfluenceSearchResultsDto();
+                if (response == null)
+                {
+                    throw new ApiException(
+                        StatusCodes.Status502BadGateway,
+                        "AI response was empty",
+                        internalMessage: "ChatCompletionService returned null in FilterSearchResultAsync");
+                }
 
-            return filteredSearchResults;
+                var jsonResponse = _jsonFormatterService.FormatJson(response.ToString());
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var filteredSearchResults = JsonSerializer.Deserialize<ConfluenceSearchResultsDto>(jsonResponse, options);
+
+                if (filteredSearchResults == null)
+                {
+                    throw new ApiException(
+                        StatusCodes.Status502BadGateway,
+                        "Failed to parse filtered search results",
+                        internalMessage: $"Deserialization returned null for response: {response}");
+                }
+
+                return filteredSearchResults;
+            }
+            catch (JsonException ex)
+            {
+                throw new ApiException(
+                    StatusCodes.Status502BadGateway,
+                    "Error parsing AI JSON response",
+                    internalMessage: ex.ToString());
+            }
+            catch (Exception ex)
+            {
+                throw new ApiException(
+                    StatusCodes.Status502BadGateway,
+                    "Failed to filter Confluence search results",
+                    internalMessage: ex.ToString());
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using dayforce_assignment.Server.DTOs.Confluence;
+using dayforce_assignment.Server.Exceptions.ApiExceptions;
 using dayforce_assignment.Server.Interfaces.Confluence;
 using HtmlAgilityPack;
 using System.Text;
@@ -9,81 +10,129 @@ namespace dayforce_assignment.Server.Services.Confluence
 {
     public class ConfluencePageCleaner : IConfluencePageCleaner
     {
-        public ConfluencePageDto CleanConfluencePage(JsonElement payload)
+        private readonly ILogger<ConfluencePageCleaner> _logger;
+
+        public ConfluencePageCleaner(ILogger<ConfluencePageCleaner> logger)
         {
-            if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
-                return new ConfluencePageDto();
+            _logger = logger;
+        }
 
-            var dto = new ConfluencePageDto
+        public ConfluencePageDto CleanConfluencePage(JsonElement confluencePage, JsonElement confluenceComments)
+        {
+            try
             {
-                Id = payload.TryGetProperty("id", out var idProp) ? idProp.GetString() : null,
-                Title = payload.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null,
-                BodyStorageValue = CleanHtml(ExtractBodyValue(payload))
-            };
+                if (confluencePage.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+                    return new ConfluencePageDto();
 
-            return dto;
+                // Extract page body
+                var pageBody = ExtractBodyValue(confluencePage);
+
+                // Extract comments body into a list
+                var commentsList = new List<string>();
+                if (confluenceComments.ValueKind != JsonValueKind.Undefined &&
+                    confluenceComments.ValueKind != JsonValueKind.Null &&
+                    confluenceComments.TryGetProperty("results", out var commentsResults))
+                {
+                    foreach (var comment in commentsResults.EnumerateArray())
+                    {
+                        var commentBody = ExtractBodyValue(comment);
+                        var cleaned = CleanHtml(commentBody);
+                        if (!string.IsNullOrWhiteSpace(cleaned))
+                            commentsList.Add(cleaned);
+                    }
+                }
+
+                return new ConfluencePageDto
+                {
+                    Id = confluencePage.TryGetProperty("id", out var idProp) ? idProp.GetString() : null,
+                    Title = confluencePage.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null,
+                    BodyStorageValue = CleanHtml(pageBody),
+                    Comments = commentsList
+                };
+            }
+            catch (JsonException jsonEx)
+            {
+                _logger.LogError(jsonEx, "JSON parsing error while cleaning Confluence page.");
+                throw new ApiException(StatusCodes.Status400BadRequest, "Invalid JSON format", internalMessage: jsonEx.Message);
+            }
+            catch (HtmlWebException htmlEx)
+            {
+                _logger.LogError(htmlEx, "HTML parsing error while cleaning Confluence page.");
+                throw new ApiException(StatusCodes.Status422UnprocessableEntity, "Error parsing HTML content", internalMessage: htmlEx.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while cleaning Confluence page.");
+                throw new ApiException(StatusCodes.Status500InternalServerError, "An unexpected error occurred", internalMessage: ex.Message);
+            }
         }
 
         private static string ExtractBodyValue(JsonElement root)
         {
-            if (root.TryGetProperty("body", out var bodyProp) &&
-                bodyProp.TryGetProperty("storage", out var storageProp) &&
-                storageProp.TryGetProperty("value", out var valueProp))
+            try
             {
-                return valueProp.GetString() ?? string.Empty;
-            }
+                if (root.TryGetProperty("body", out var bodyProp) &&
+                    bodyProp.TryGetProperty("storage", out var storageProp) &&
+                    storageProp.TryGetProperty("value", out var valueProp))
+                {
+                    return valueProp.GetString() ?? string.Empty;
+                }
 
-            return string.Empty;
+                return string.Empty;
+            }
+            catch (Exception ex)
+            {
+                throw new HtmlWebException("Failed to extract body value from JSON.", ex);
+            }
         }
 
-        /// <summary>
-        /// Cleans HTML using HtmlAgilityPack: removes Confluence macros, scripts, and style elements, then extracts visible text.
-        /// </summary>
         private static string CleanHtml(string html)
         {
             if (string.IsNullOrWhiteSpace(html))
                 return string.Empty;
 
-            var doc = new HtmlDocument();
-            doc.LoadHtml(html);
-
-            // Remove all Confluence macros (ac:macro) and other unwanted elements
-            RemoveNodes(doc.DocumentNode, "//*[local-name()='macro'] | //script | //style");
-
-            // Extract all visible text
-            var sb = new StringBuilder();
-            var textNodes = doc.DocumentNode.SelectNodes("//text()");
-            if (textNodes != null)
+            try
             {
-                foreach (var textNode in textNodes)
-                {
-                    var text = textNode.InnerText;
-                    if (!string.IsNullOrWhiteSpace(text))
-                        sb.AppendLine(text.Trim());
-                }
-            }
+                var doc = new HtmlDocument();
+                doc.LoadHtml(html);
 
-            // Decode HTML entities and trim
-            return HttpUtility.HtmlDecode(sb.ToString().Trim());
+                // Remove macros, script, style elements
+                RemoveNodes(doc.DocumentNode, "//*[local-name()='macro'] | //script | //style");
+
+                var sb = new StringBuilder();
+                var textNodes = doc.DocumentNode.SelectNodes("//text()");
+                if (textNodes != null)
+                {
+                    foreach (var textNode in textNodes)
+                    {
+                        var text = textNode.InnerText;
+                        if (!string.IsNullOrWhiteSpace(text))
+                            sb.AppendLine(text.Trim());
+                    }
+                }
+
+                return HttpUtility.HtmlDecode(sb.ToString().Trim());
+            }
+            catch (Exception ex)
+            {
+                throw new HtmlWebException("Failed to clean HTML content.", ex);
+            }
         }
 
-        /// <summary>
-        /// Helper to remove nodes matching XPath
-        /// </summary>
         private static void RemoveNodes(HtmlNode root, string xPath)
         {
             var nodes = root.SelectNodes(xPath);
-            if (nodes != null)
-            {
-                foreach (var node in nodes)
-                {
-                    node.Remove();
-                }
-            }
+            if (nodes == null) return;
+
+            foreach (var node in nodes)
+                node.Remove();
         }
     }
+
+    // Custom exception for HTML parsing errors
+    public class HtmlWebException : Exception
+    {
+        public HtmlWebException(string message, Exception? innerException = null)
+            : base(message, innerException) { }
+    }
 }
-
-
-
-

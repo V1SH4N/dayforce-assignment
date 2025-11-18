@@ -1,11 +1,11 @@
 ﻿using dayforce_assignment.Server.Configuration;
 using dayforce_assignment.Server.Interfaces.Common;
 using Microsoft.SemanticKernel;
-using System.Net.Http;
+using System.Text;
 
 namespace dayforce_assignment.Server.Services.Common
 {
-    public class AttachmentDownloadService: IAttachmentDownloadService
+    public class AttachmentDownloadService : IAttachmentDownloadService
     {
         private readonly IHttpClientFactory _httpClientFactory;
 
@@ -14,12 +14,31 @@ namespace dayforce_assignment.Server.Services.Common
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<ImageContent> DownloadAttachmentAsync(string downloadLink)
+        public async Task<KernelContent?> DownloadAttachmentAsync(string downloadLink, string mediaType)
         {
-            var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
-            var responseBytes = await httpClient.GetByteArrayAsync(downloadLink);
+            if (string.IsNullOrWhiteSpace(downloadLink))
+                return null; 
 
-            return new ImageContent(new ReadOnlyMemory<byte>(responseBytes), "image/jpeg");
+            try
+            {
+                var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
+                var responseBytes = await httpClient.GetByteArrayAsync(downloadLink);
+
+                if (responseBytes == null || responseBytes.Length == 0)
+                    return null; // ignore empty attachments
+
+                if (mediaType.StartsWith("image/"))
+                    return new ImageContent(new ReadOnlyMemory<byte>(responseBytes), mediaType);
+
+                if (mediaType.StartsWith("text/"))
+                    return new TextContent(Encoding.UTF8.GetString(responseBytes));
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

@@ -1,4 +1,6 @@
-﻿using dayforce_assignment.Server.Interfaces.Confluence;
+﻿using dayforce_assignment.Server.Exceptions.ApiExceptions;
+using dayforce_assignment.Server.Interfaces.Confluence;
+using System.Net;
 using System.Text.Json;
 
 namespace dayforce_assignment.Server.Services.Confluence
@@ -6,34 +8,96 @@ namespace dayforce_assignment.Server.Services.Confluence
     public class ConfluenceAttachmentsService : IConfluenceAttachmentsService
     {
         private readonly IHttpClientFactory _httpClientFactory;
+
         public ConfluenceAttachmentsService(IHttpClientFactory httpClientFactory)
         {
             _httpClientFactory = httpClientFactory;
         }
+
         public async Task<JsonElement> GetConfluenceAttachmentsAsync(string baseUrl, string id)
         {
+            if (string.IsNullOrWhiteSpace(baseUrl))
+                throw new ApiException(
+                    StatusCodes.Status400BadRequest,
+                    "Confluence base URL is required.",
+                    internalMessage: "baseUrl parameter was null or empty."
+                );
 
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ApiException(
+                    StatusCodes.Status400BadRequest,
+                    "Confluence page ID is required.",
+                    internalMessage: "id parameter was null or empty."
+                );
 
-            var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
+            try
+            {
+                var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
+                var url = new Uri(new Uri(baseUrl), $"wiki/api/v2/pages/{id}/attachments");
 
-            var response = await httpClient.GetAsync(new Uri(new Uri(baseUrl), $"wiki/api/v2/pages/{id}?/attachments"));
+                var response = await httpClient.GetAsync(url);                    
 
-            var jsonResponse = await response.Content.ReadFromJsonAsync<JsonElement>();
+                if (response.StatusCode == HttpStatusCode.BadRequest)
+                {
+                        throw new ApiException(
+                        StatusCodes.Status400BadRequest,
+                        "Invalid request to Confluence API.",
+                        internalMessage: $"Confluence API returned 400 for page ID '{id}' and baseUrl '{baseUrl}'."
+                    );
+                }
 
-            return jsonResponse;
-            //var httpClient = _httpClientFactory.CreateClient();
-            //string authenticationString = $"{Environment.GetEnvironmentVariable("authEmail")}:{Environment.GetEnvironmentVariable("authToken")}";
-            //byte[] authenticationBytes = System.Text.Encoding.UTF8.GetBytes(authenticationString);
-            //string base64EncodedAuthenticationString = Convert.ToBase64String(authenticationBytes);
-            //httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", base64EncodedAuthenticationString);
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    throw new ApiException(
+                        StatusCodes.Status404NotFound,
+                        "Confluence page not found.",
+                        internalMessage: $"No attachments found for page ID '{id}' at '{baseUrl}'."
+                    );
+                }
 
-            //var httpResponseMessage = await httpClient.GetAsync($"{baseUrl}/wiki/api/v2/pages/{id}/attachments");
-            //var stringResponse = await httpResponseMessage.Content.ReadAsStringAsync();
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    throw new ApiException(
+                        StatusCodes.Status401Unauthorized,
+                        "Unauthorized to access Confluence attachments.",
+                        internalMessage: $"Unauthorized HTTP request to '{url}'."
+                    );
+                }
 
-            //var jsonResponse = JsonDocument.Parse(stringResponse);
-            //return jsonResponse.RootElement.Clone();
+                response.EnsureSuccessStatusCode();
+
+                var jsonResponse = await response.Content.ReadFromJsonAsync<JsonElement>();
+                if (jsonResponse.ValueKind == JsonValueKind.Undefined || jsonResponse.ValueKind == JsonValueKind.Null)
+                {
+                    return new JsonElement(); // return empty JSON safely
+                }
+
+                return jsonResponse;
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new ApiException(
+                    StatusCodes.Status502BadGateway,
+                    "Failed to call Confluence attachments API.",
+                    internalMessage: ex.ToString()
+                );
+            }
+            catch (NotSupportedException ex)
+            {
+                throw new ApiException(
+                    StatusCodes.Status502BadGateway,
+                    "The content type from Confluence API is not supported.",
+                    internalMessage: ex.ToString()
+                );
+            }
+            catch (JsonException ex)
+            {
+                throw new ApiException(
+                    StatusCodes.Status502BadGateway,
+                    "Error parsing Confluence attachments JSON.",
+                    internalMessage: ex.ToString()
+                );
+            }
         }
-
     }
-
 }
