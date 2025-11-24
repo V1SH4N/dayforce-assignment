@@ -1,7 +1,7 @@
-﻿The user will upload a Jira user story in JSON format.
+﻿The user will upload a Jira issue story in JSON format.
 
 # Your task:
-* Identify any Confluence page URLs included in the story.
+* Identify any Confluence page URLs included in the issue.
 * Each Confluence page URL will have a numeric page ID, for example:
     https://dayforce.atlassian.net/wiki/spaces/CAM/pages/381158878/Camelot+CI+CD+Process
     - The page ID is 381158878.

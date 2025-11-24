@@ -16,16 +16,10 @@ namespace dayforce_assignment.Server.Services.Common
 
         public async Task<KernelContent?> DownloadAttachmentAsync(string downloadLink, string mediaType)
         {
-            if (string.IsNullOrWhiteSpace(downloadLink))
-                return null; 
-
-            try
+            try 
             {
                 var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
                 var responseBytes = await httpClient.GetByteArrayAsync(downloadLink);
-
-                if (responseBytes == null || responseBytes.Length == 0)
-                    return null; // ignore empty attachments
 
                 if (mediaType.StartsWith("image/"))
                     return new ImageContent(new ReadOnlyMemory<byte>(responseBytes), mediaType);
@@ -39,6 +33,8 @@ namespace dayforce_assignment.Server.Services.Common
             {
                 return null;
             }
+           
+          
         }
     }
 }

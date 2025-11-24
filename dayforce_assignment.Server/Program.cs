@@ -1,43 +1,95 @@
-using dayforce_assignment.Server.Interfaces;
+using Aida.Client;
+using Aida.Client.Extensions;
+using dayforce_assignment.Server.Interfaces.Common;
+using dayforce_assignment.Server.Interfaces.Confluence;
+using dayforce_assignment.Server.Interfaces.Jira;
+using dayforce_assignment.Server.Interfaces.Orchestrator;
 using dayforce_assignment.Server.Services;
+using dayforce_assignment.Server.Services.Common;
+using dayforce_assignment.Server.Services.Confluence;
+using dayforce_assignment.Server.Services.Orchestrator;
 using DotNetEnv;
-using System.Net.Http;
+using Microsoft.SemanticKernel;
+using System.ClientModel.Primitives;
+using dayforce_assignment.Server.Configuration;
+
 
 Env.Load();
 
-
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
-// Add dayforce hhtp client
-builder.Services.AddHttpClient("dayforce", client =>
+// AIDA options
+AidaApiOptions aidaApiOptions = new()
 {
-    client.BaseAddress = new Uri("https://dayforce.atlassian.net/");
-    string authenticationString = $"{Environment.GetEnvironmentVariable("dayforceEmail")}:{Environment.GetEnvironmentVariable("dayforceToken")}";
-    byte[] authenticationBytes = System.Text.Encoding.UTF8.GetBytes(authenticationString);
-    string base64EncodedAuthenticationString = Convert.ToBase64String(authenticationBytes);
-    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", base64EncodedAuthenticationString);
+    Environment = AidaApiEnvironment.Development
+};
+
+// Atlassian API options
+var atlassianOptions = new AtlassianApiOptions
+{
+    AuthEmail = Environment.GetEnvironmentVariable("AUTH_EMAIL") ?? string.Empty,
+    AuthToken = Environment.GetEnvironmentVariable("AUTH_TOKEN") ?? string.Empty
+};
+
+builder.Services.AddSingleton(atlassianOptions);
+
+// HttpClient configuration
+builder.Services.AddHttpClient("AtlassianAuthenticatedClient", client =>
+{
+    var credentials = $"{atlassianOptions.AuthEmail}:{atlassianOptions.AuthToken}";
+    var encoded = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(credentials));
+
+    client.DefaultRequestHeaders.Authorization =
+        new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", encoded);
 });
 
-// Add test hhtp client
-builder.Services.AddHttpClient("test", client =>
-{
-    client.BaseAddress = new Uri("https://vishandaby305.atlassian.net/");
-    string authenticationString = $"{Environment.GetEnvironmentVariable("testEmail")}:{Environment.GetEnvironmentVariable("testToken")}";
-    byte[] authenticationBytes = System.Text.Encoding.UTF8.GetBytes(authenticationString);
-    string base64EncodedAuthenticationString = Convert.ToBase64String(authenticationBytes);
-    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", base64EncodedAuthenticationString);
-});
 
-// Inject JiraStoryService 
-builder.Services.AddScoped<IJiraStoryService, JiraStoryService>(); // need to check scope of service, added as scoped for now
+// Jira services
+builder.Services.AddScoped<IJiraIssueService, JiraIssueService>();
+builder.Services.AddScoped<IJiraRemoteLinksService, JiraRemoteLinksService>();
+builder.Services.AddScoped<IJiraIssueCleaner, JiraIssueCleaner>();
 
-// Inject SearchConfluencePageService
-builder.Services.AddScoped<ISearchConfluencePageService, SearchConfluencePageService>();
-
-// Inject ConfluencePageService
+// Confluence Services
 builder.Services.AddScoped<IConfluencePageService, ConfluencePageService>();
+builder.Services.AddScoped<IConfluencePageCleaner, ConfluencePageCleaner>();
+builder.Services.AddScoped<IConfluencePageReferenceExtractor, ConfluencePageReferenceExtractor>();
+builder.Services.AddScoped<IConfluenceAttachmentsService, ConfluenceAttachmentsService>();
+builder.Services.AddScoped<IConfluenceCommentsService, ConfluenceCommentsService>();
+builder.Services.AddScoped<IConfluenceAttachmentsCleaner, ConfluenceAttachmentsCleaner>();
+builder.Services.AddScoped<IConfluencePageSearchService, ConfluencePageSearchService>();
+builder.Services.AddScoped<IConfluencePageSearchParameterService, ConfluencePageSearchParameterService>();
+builder.Services.AddScoped<IConfluencePageSearchOrchestrator, ConfluencePageSearchOrchestrator>();
+builder.Services.AddScoped<IConfluencePageSearchFilterService, ConfluencePageSearchFilterService>();
+builder.Services.AddScoped<IConfluencePageSummaryService, ConfluencePageSummaryService>();
+
+// Common Services
+builder.Services.AddScoped<IAttachmentDownloadService, AttachmentDownloadService>();
+builder.Services.AddScoped<IJsonFormatterService, JsonFormatterService>();
+
+// Orchestrator Services
+builder.Services.AddScoped<IUserMessageBuilder, UserMessageBuilder>();
+builder.Services.AddScoped<ITestCaseGeneratorService, TestCaseGeneratorService>();
+
+// Aida services
+builder.Services.AddSingleton(aidaApiOptions);
+builder.Services.AddSingleton(ClientPipeline.Create());
+builder.Services.AddSingleton<IAidaApiClient, AidaApiClient>();
+builder.Services.AddAidaOpenAIClient(aidaApiOptions, "Test Team", "Test Tool");
+builder.Services.AddKernel();
+builder.Services.AddOpenAIChatCompletion("chat4o_global");
+//builder.Services.AddOpenAIChatCompletion("o3-mini");
+//builder.Services.AddOpenAIChatCompletion("gpt-5-mini");
+//builder.Services.AddOpenAIChatCompletion("o4-mini");
+
+
+// Handle CORS  
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp",
+        policy => policy.WithOrigins("http://localhost:5173")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod());
+});
 
 
 builder.Services.AddControllers();
@@ -60,6 +112,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
+app.UseCors("AllowReactApp");
 
 app.MapControllers();
 

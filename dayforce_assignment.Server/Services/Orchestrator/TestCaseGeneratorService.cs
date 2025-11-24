@@ -9,29 +9,29 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 {
     public class TestCaseGeneratorService: ITestCaseGeneratorService
     {
-        private readonly IUserMessageBuilder _userPromptBuilder;
+        private readonly IUserMessageBuilder _userMessageBuilder;
         private readonly IChatCompletionService _chatCompletionService;
         private readonly IJsonFormatterService _jsonFormatterService;
-        public TestCaseGeneratorService(IUserMessageBuilder userPromptBuilder, IChatCompletionService chatCompletionService, IJsonFormatterService jsonFormatterService)
+        public TestCaseGeneratorService(IUserMessageBuilder userMessageBuilder, IChatCompletionService chatCompletionService, IJsonFormatterService jsonFormatterService)
         {
             _chatCompletionService = chatCompletionService;
-            _userPromptBuilder = userPromptBuilder;
+            _userMessageBuilder = userMessageBuilder;
             _jsonFormatterService = jsonFormatterService;
         }
 
         public async Task<JsonElement> GenerateTestCasesAsync(string JiraId)
         {
-            // stopwatch to measure time taken
+            // stopwatch 
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
 
             var history = new ChatHistory();
 
-            string systemPrompt = File.ReadAllText("SystemPrompts/TestCaseGenerator.txt");
+            string systemPrompt = File.ReadAllText("SystemPrompts/TestCaseGeneratorV3.txt");
 
             history.AddSystemMessage(systemPrompt);
            
-            ChatMessageContentItemCollection userMessage = await _userPromptBuilder.BuildUserMessageAsync(JiraId);
+            ChatMessageContentItemCollection userMessage = await _userMessageBuilder.BuildUserMessageAsync(JiraId);
 
             history.AddUserMessage(userMessage);
 
@@ -39,7 +39,8 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 
             var jsonResponse = _jsonFormatterService.FormatJson(response.ToString());
 
-            stopwatch.Stop(); // Stops the time measurement
+            // Time measurment
+            stopwatch.Stop(); 
             TimeSpan elapsed = stopwatch.Elapsed;
             Console.WriteLine($"[Timer] Elapsed time: {elapsed.TotalMilliseconds} ms");
 

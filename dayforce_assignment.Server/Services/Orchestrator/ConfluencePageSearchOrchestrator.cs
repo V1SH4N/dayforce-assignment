@@ -2,6 +2,7 @@
 using dayforce_assignment.Server.DTOs.Jira;
 using dayforce_assignment.Server.Interfaces.Confluence;
 using dayforce_assignment.Server.Interfaces.Orchestrator;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace dayforce_assignment.Server.Services.Orchestrator
@@ -24,18 +25,20 @@ namespace dayforce_assignment.Server.Services.Orchestrator
             _confluencePageSearchParameterService = confluencePageSearchParameterService;
             _confluencePageSearchService = confluencePageSearchService;
             _confluencePageSearchFilterService = confluencePageSearchFilterService;
-           _baseUrl = configuration["Atlassian:BaseUrl"]
-            ?? throw new ArgumentNullException("Atlassian base URL is not configured");
+            _baseUrl = configuration["Atlassian:BaseUrl"];
         }
 
-        public async Task<ConfluencePageReferencesDto> GetConfluencePageReferencesAsync(JiraStoryDto jiraStory)
+        public async Task<ConfluencePageReferencesDto> GetConfluencePageReferencesAsync(JiraIssueDto jiraStory)
         {
-            var pagesMetadata = new List<ConfluencePageMetadata>();
+            //var pagesMetadata = new List<ConfluencePageMetadata>();
 
             // Get search parameters
             ConfluenceSearchParametersDto searchParametersList = await _confluencePageSearchParameterService.GetSearchParametersAsync(jiraStory);
 
-            foreach (string searchParameter in searchParametersList.SearchParameters)
+            var pagesMetadata = new ConcurrentBag<ConfluencePageMetadata>(); // thread safe collection
+
+            // Create list of tasks for all search parameters
+            var searchTasks = searchParametersList.SearchParameters.Select(async searchParameter =>
             {
                 // Get search results
                 JsonElement searchResult = await _confluencePageSearchService.SearchConfluencePageAsync(searchParameter);
@@ -50,25 +53,26 @@ namespace dayforce_assignment.Server.Services.Orchestrator
                             Title = item.GetProperty("title").GetString() ?? string.Empty
                         };
 
+                        // Add only if it doesn't exist already
                         if (!pagesMetadata.Any(p => p.Id == pageMetadata.Id))
                         {
                             pagesMetadata.Add(pageMetadata);
                         }
                     }
-
                 }
-            }
+            });
+
+            await Task.WhenAll(searchTasks);
 
             var searchPagesMetadata = new ConfluenceSearchResultsDto
             {
-                ConfluencePagesMetadata = pagesMetadata
+                ConfluencePagesMetadata = pagesMetadata.ToList()
             };
 
             // Filter search results
             ConfluenceSearchResultsDto filteredSearchPagesMetada = await _confluencePageSearchFilterService.FilterSearchResultAsync(jiraStory, searchPagesMetadata);
 
-
-            // Convert filtered search results ro ConfluencePagereferencesDto
+            // Convert filtered search results to ConfluencePagereferencesDto
             var confluencePageReferences = new ConfluencePageReferencesDto();
 
             foreach (var result in filteredSearchPagesMetada.ConfluencePagesMetadata)

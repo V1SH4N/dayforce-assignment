@@ -1,8 +1,8 @@
 ﻿using dayforce_assignment.Server.DTOs.Confluence;
 using dayforce_assignment.Server.DTOs.Jira;
-using dayforce_assignment.Server.Exceptions.ApiExceptions;
 using dayforce_assignment.Server.Interfaces.Common;
 using dayforce_assignment.Server.Interfaces.Confluence;
+using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text.Json;
 
@@ -21,65 +21,28 @@ namespace dayforce_assignment.Server.Services.Confluence
             _jsonFormatterService = jsonFormatterService;
         }
 
-        public async Task<ConfluenceSearchParametersDto> GetSearchParametersAsync(JiraStoryDto jiraStory)
+        public async Task<ConfluenceSearchParametersDto> GetSearchParametersAsync(JiraIssueDto jiraStory)
         {
-            if (jiraStory == null)
-                throw new ApiException(
-                    StatusCodes.Status400BadRequest,
-                    "Invalid Jira story input",
-                    "JiraStoryDto cannot be null",
-                    internalMessage: "Received null JiraStoryDto in GetSearchParametersAsync");
-
             var history = new ChatHistory();
 
-            string systemPrompt = File.ReadAllText("SystemPrompts/ConfluencePageSearchParameter.txt");
+            string systemPrompt = File.ReadAllText("SystemPrompts/ConfluencePageSearchParameterV2.txt");
 
             history.AddSystemMessage(systemPrompt);
 
-            try
+            history.AddUserMessage(JsonSerializer.Serialize(jiraStory));
+
+           var response = await _chatCompletionService.GetChatMessageContentAsync(history);
+            var jsonResponse = _jsonFormatterService.FormatJson(response.ToString());
+
+            var options = new JsonSerializerOptions
             {
-                string jiraStoryString = JsonSerializer.Serialize(jiraStory);
-                history.AddUserMessage(jiraStoryString);
+                PropertyNameCaseInsensitive = true
+            };
 
-                var response = await _chatCompletionService.GetChatMessageContentAsync(history);
+            var searchParameters = JsonSerializer.Deserialize<ConfluenceSearchParametersDto>(jsonResponse, options);
 
-                if (response == null)
-                    throw new ApiException(
-                        StatusCodes.Status502BadGateway,
-                        "AI response was empty",
-                        internalMessage: "ChatCompletionService returned null response");
-
-                var jsonResponse = _jsonFormatterService.FormatJson(response.ToString());
-
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                };
-
-                var searchParameters = JsonSerializer.Deserialize<ConfluenceSearchParametersDto>(jsonResponse, options);
-
-                if (searchParameters == null || searchParameters.SearchParameters == null)
-                    throw new ApiException(
-                        StatusCodes.Status502BadGateway,
-                        "Failed to parse search parameters from AI response",
-                        internalMessage: $"Deserialization returned null for response: {response}");
-
-                return searchParameters;
-            }
-            catch (JsonException ex)
-            {
-                throw new ApiException(
-                    StatusCodes.Status502BadGateway,
-                    "Error parsing AI JSON response",
-                    internalMessage: ex.ToString());
-            }
-            catch (Exception ex)
-            {
-                throw new ApiException(
-                    StatusCodes.Status502BadGateway,
-                    "Failed to generate Confluence search parameters",
-                    internalMessage: ex.ToString());
-            }
+            return searchParameters;
+           
         }
     }
 }
