@@ -1,8 +1,8 @@
 ﻿using dayforce_assignment.Server.DTOs.Confluence;
 using dayforce_assignment.Server.DTOs.Jira;
+using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Common;
 using dayforce_assignment.Server.Interfaces.Confluence;
-using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text.Json;
 
@@ -21,30 +21,47 @@ namespace dayforce_assignment.Server.Services.Confluence
             _jsonFormatterService = jsonFormatterService;
         }
 
-        public async Task<ConfluenceSearchResultsDto> FilterSearchResultAsync(JiraIssueDto jiraStory, ConfluenceSearchResultsDto searchResults)
+        public async Task<ConfluenceSearchResultsDto> FilterResultAsync(JiraIssueDto jiraStory, ConfluenceSearchResultsDto searchResults)
         {
+            if (searchResults.ConfluencePagesMetadata?.Count == 0)
+                return new ConfluenceSearchResultsDto();
 
-            var history = new ChatHistory();
+                var jiraKey = jiraStory?.Key;
 
-            string systemPrompt = File.ReadAllText("SystemPrompts/ConfluencePageSearchFilterV2.txt");
-
-            history.AddSystemMessage(systemPrompt);
-
-            history.AddUserMessage(JsonSerializer.Serialize(jiraStory));
-            history.AddUserMessage(JsonSerializer.Serialize(searchResults));
-
-            var response = await _chatCompletionService.GetChatMessageContentAsync(history);
-
-            var jsonResponse = _jsonFormatterService.FormatJson(response.ToString());
-
-            var options = new JsonSerializerOptions
+            try
             {
-                PropertyNameCaseInsensitive = true
-            };
+                var history = new ChatHistory();
 
-            var filteredSearchResults = JsonSerializer.Deserialize<ConfluenceSearchResultsDto>(jsonResponse, options);
+                string systemPrompt = File.ReadAllText("SystemPrompts/ConfluencePageSearchFilterV2.txt");
+                history.AddSystemMessage(systemPrompt);
 
-            return filteredSearchResults;
+                history.AddUserMessage(JsonSerializer.Serialize(jiraStory));
+                history.AddUserMessage(JsonSerializer.Serialize(searchResults));
+
+                var response = await _chatCompletionService.GetChatMessageContentAsync(history);
+
+                var jsonResponse = _jsonFormatterService.FormatJson(response.ToString());
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var filteredSearchResults = JsonSerializer.Deserialize<ConfluenceSearchResultsDto>(jsonResponse, options);
+
+                if (filteredSearchResults == null)
+                    throw new ConfluenceSearchFilterExtractionException(jiraKey, "Deserialized object is null.");
+
+                return filteredSearchResults;
+            }
+            catch (JsonException ex)
+            {
+                throw new ConfluenceSearchFilterExtractionException(jiraKey, $"JSON parsing error: {ex.Message}");
+            }
+            catch (Exception ex) when (!(ex is DomainException))
+            {
+                throw new ConfluenceSearchFilterExtractionException(jiraKey, $"Unexpected error: {ex.Message}");
+            }
         }
     }
 }

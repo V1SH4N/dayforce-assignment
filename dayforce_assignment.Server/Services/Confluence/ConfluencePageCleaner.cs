@@ -1,4 +1,5 @@
 ﻿using dayforce_assignment.Server.DTOs.Confluence;
+using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Confluence;
 using HtmlAgilityPack;
 using System.Text;
@@ -11,32 +12,46 @@ namespace dayforce_assignment.Server.Services.Confluence
     {
         public ConfluencePageDto CleanConfluencePage(JsonElement confluencePage, JsonElement confluenceComments)
         {
-            // Extract page body
-            var pageBody = ExtractBodyValue(confluencePage);
-
-            // Extract comments body into a list
-            var commentsList = new List<string>();
-            if (confluenceComments.ValueKind != JsonValueKind.Undefined &&
-                confluenceComments.ValueKind != JsonValueKind.Null &&
-                confluenceComments.TryGetProperty("results", out var commentsResults))
+            try
             {
-                foreach (var comment in commentsResults.EnumerateArray())
+                var pageId = confluencePage.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "unknown" : "unknown";
+
+                // Extract page body
+                var pageBody = ExtractBodyValue(confluencePage);
+
+                // Extract comments body into a list
+                var commentsList = new List<string>();
+                if (confluenceComments.ValueKind != JsonValueKind.Undefined &&
+                    confluenceComments.ValueKind != JsonValueKind.Null &&
+                    confluenceComments.TryGetProperty("results", out var commentsResults))
                 {
-                    var commentBody = ExtractBodyValue(comment);
-                    var cleaned = CleanHtml(commentBody);
-                    if (!string.IsNullOrWhiteSpace(cleaned))
-                        commentsList.Add(cleaned);
+                    foreach (var comment in commentsResults.EnumerateArray())
+                    {
+                        var commentBody = ExtractBodyValue(comment);
+                        var cleaned = CleanHtml(commentBody);
+                        if (!string.IsNullOrWhiteSpace(cleaned))
+                            commentsList.Add(cleaned);
+                    }
                 }
-            }
 
-            return new ConfluencePageDto
+                return new ConfluencePageDto
+                {
+                    Id = pageId,
+                    Title = confluencePage.TryGetProperty("title", out var titleProp) ? titleProp.GetString() ?? string.Empty : string.Empty,
+                    BodyStorageValue = CleanHtml(pageBody),
+                    Comments = commentsList
+                };
+            }
+            catch (JsonException ex)
             {
-                Id = confluencePage.TryGetProperty("id", out var idProp) ? idProp.GetString() : string.Empty,
-                Title = confluencePage.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null,
-                BodyStorageValue = CleanHtml(pageBody),
-                Comments = commentsList
-            };
-           
+                var pageId = confluencePage.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "unknown" : "unknown";
+                throw new ConfluencePageParsingException(pageId, $"JSON parsing error: {ex.Message}");
+            }
+            catch (Exception ex) when (!(ex is DomainException))
+            {
+                var pageId = confluencePage.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "unknown" : "unknown";
+                throw new ConfluencePageParsingException(pageId, $"Unexpected error: {ex.Message}");
+            }
         }
 
         private static string ExtractBodyValue(JsonElement root)
@@ -72,7 +87,6 @@ namespace dayforce_assignment.Server.Services.Confluence
             }
 
             return HttpUtility.HtmlDecode(sb.ToString().Trim());
-            
         }
 
         private static void RemoveNodes(HtmlNode root, string xPath)

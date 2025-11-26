@@ -1,8 +1,8 @@
 ﻿using dayforce_assignment.Server.DTOs.Confluence;
 using dayforce_assignment.Server.DTOs.Jira;
+using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Common;
 using dayforce_assignment.Server.Interfaces.Confluence;
-using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text.Json;
 
@@ -21,28 +21,43 @@ namespace dayforce_assignment.Server.Services.Confluence
             _jsonFormatterService = jsonFormatterService;
         }
 
-        public async Task<ConfluenceSearchParametersDto> GetSearchParametersAsync(JiraIssueDto jiraStory)
+        public async Task<ConfluenceSearchParametersDto> GetParametersAsync(JiraIssueDto jiraStory)
         {
-            var history = new ChatHistory();
+            var jiraId = jiraStory?.Key ?? "unknown";
 
-            string systemPrompt = File.ReadAllText("SystemPrompts/ConfluencePageSearchParameterV2.txt");
-
-            history.AddSystemMessage(systemPrompt);
-
-            history.AddUserMessage(JsonSerializer.Serialize(jiraStory));
-
-           var response = await _chatCompletionService.GetChatMessageContentAsync(history);
-            var jsonResponse = _jsonFormatterService.FormatJson(response.ToString());
-
-            var options = new JsonSerializerOptions
+            try
             {
-                PropertyNameCaseInsensitive = true
-            };
+                var history = new ChatHistory();
 
-            var searchParameters = JsonSerializer.Deserialize<ConfluenceSearchParametersDto>(jsonResponse, options);
+                string systemPrompt = File.ReadAllText("SystemPrompts/ConfluencePageSearchParameterV2.txt");
+                history.AddSystemMessage(systemPrompt);
 
-            return searchParameters;
-           
+                history.AddUserMessage(JsonSerializer.Serialize(jiraStory));
+
+                var response = await _chatCompletionService.GetChatMessageContentAsync(history);
+
+                var jsonResponse = _jsonFormatterService.FormatJson(response.ToString());
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var searchParameters = JsonSerializer.Deserialize<ConfluenceSearchParametersDto>(jsonResponse, options);
+
+                if (searchParameters == null)
+                    throw new ConfluenceSearchParameterExtractionException(jiraId, "Deserialized object is null.");
+
+                return searchParameters;
+            }
+            catch (JsonException ex)
+            {
+                throw new ConfluenceSearchParameterExtractionException(jiraId, $"JSON parsing error: {ex.Message}");
+            }
+            catch (Exception ex) when (!(ex is DomainException))
+            {
+                throw new ConfluenceSearchParameterExtractionException(jiraId, $"Unexpected error: {ex.Message}");
+            }
         }
     }
 }

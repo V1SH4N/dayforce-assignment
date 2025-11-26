@@ -1,7 +1,7 @@
 ﻿using dayforce_assignment.Server.DTOs.Confluence;
+using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Common;
 using dayforce_assignment.Server.Interfaces.Confluence;
-using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text.Json;
 
@@ -13,70 +13,83 @@ namespace dayforce_assignment.Server.Services.Confluence
         private readonly IConfluenceAttachmentsService _confluenceAttachmentsService;
         private readonly IConfluenceAttachmentsCleaner _confluenceAttachmentsCleaner;
         private readonly IAttachmentDownloadService _attachmentDownloadService;
+        private readonly ILogger<GlobalExceptionMiddleware> _logger;
+
 
         public ConfluencePageSummaryService(
             IChatCompletionService chatCompletionService,
             IConfluenceAttachmentsCleaner confluenceAttachmentsCleaner,
             IConfluenceAttachmentsService confluenceAttachmentsService,
-            IAttachmentDownloadService attachmentDownloadService)
+            IAttachmentDownloadService attachmentDownloadService,
+            ILogger<GlobalExceptionMiddleware> logger
+            )
         {
             _chatCompletionService = chatCompletionService;
             _confluenceAttachmentsCleaner = confluenceAttachmentsCleaner;
             _confluenceAttachmentsService = confluenceAttachmentsService;
             _attachmentDownloadService = attachmentDownloadService;
+            _logger = logger;
         }
 
         public async Task<string> SummarizeConfluencePageAsync(ConfluencePageDto confluencePage, string baseUrl)
         {
-            var history = new ChatHistory();
+            var pageId = confluencePage?.Id ?? "unknown";
 
-            var userMessage = new ChatMessageContentItemCollection();
-
-            string systemPrompt = File.ReadAllText("SystemPrompts/ConfluencePageSummary.txt");
-
-            history.AddSystemMessage(systemPrompt);
-
-            // Get Confluence attachments 
-            var rawConfluencePageAttachments = await _confluenceAttachmentsService.GetConfluenceAttachmentsAsync(baseUrl, confluencePage.Id);
-
-            var cleanedConfluencePageAttachments = _confluenceAttachmentsCleaner.CleanConfluenceAttachments(rawConfluencePageAttachments);
-
-            history.AddUserMessage(JsonSerializer.Serialize(confluencePage));
-
-            if (cleanedConfluencePageAttachments.Attachments?.Count > 0)
+            try
             {
-                var downloadTasks = cleanedConfluencePageAttachments.Attachments.Select(async attachment =>
+                var history = new ChatHistory();
+                var userMessage = new ChatMessageContentItemCollection();
+
+                string systemPrompt = File.ReadAllText("SystemPrompts/ConfluencePageSummary.txt");
+                history.AddSystemMessage(systemPrompt);
+
+                // Get Confluence attachments 
+                var rawAttachments = await _confluenceAttachmentsService.GetConfluenceAttachmentsAsync(baseUrl, pageId);
+                var cleanedAttachments = _confluenceAttachmentsCleaner.CleanConfluenceAttachments(rawAttachments);
+
+                history.AddUserMessage(JsonSerializer.Serialize(confluencePage));
+
+                if (cleanedAttachments.Attachments?.Count > 0)
                 {
-                    try
+                    var downloadTasks = cleanedAttachments.Attachments.Select(async attachment =>
                     {
-                        var confluenceAttachment = await _attachmentDownloadService.DownloadAttachmentAsync(
-                            attachment.DownloadLink,
-                            attachment.mediaType
-                        );
+                        try
+                        {
+                            return await _attachmentDownloadService.DownloadAttachmentAsync(
+                                attachment.DownloadLink,
+                                attachment.MediaType
+                            );
+                        }    
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Skipping attachment {Link} due to error.", attachment.DownloadLink);
+                            return null;
+                        }
+                    });
 
-                        return confluenceAttachment;
-                    }
-                    catch
+                    var results = await Task.WhenAll(downloadTasks);
+
+                    foreach (var result in results)
                     {
-                        // Ignore unsupported attachments
-                        return null;
-                    }
-                });
-
-                var results = await Task.WhenAll(downloadTasks);
-
-                foreach (var result in results)
-                {
-                    if (result != null)
-                    {
-                        userMessage.Add(result); 
+                        if (result != null)
+                        {
+                            userMessage.Add(result);
+                        }
                     }
                 }
+
+                var response = await _chatCompletionService.GetChatMessageContentAsync(history);
+
+                return response.ToString().Trim();
             }
-
-            var response = await _chatCompletionService.GetChatMessageContentAsync(history);
-
-            return response.ToString().Trim();
+            catch (DomainException)
+            {
+                throw; // propagate known domain exceptions
+            }
+            catch (Exception ex)
+            {
+                throw new ConfluencePageSummaryException(pageId, ex.Message);
+            }
         }
     }
 }

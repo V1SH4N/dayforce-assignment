@@ -1,51 +1,76 @@
-﻿using dayforce_assignment.Server.Interfaces.Common;
+﻿using dayforce_assignment.Server.DTOs.Jira;
+using dayforce_assignment.Server.Exceptions;
+using dayforce_assignment.Server.Interfaces.Common;
+using dayforce_assignment.Server.Interfaces.Jira;
 using dayforce_assignment.Server.Interfaces.Orchestrator;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text.Json;
-using System.Diagnostics;
-
 
 namespace dayforce_assignment.Server.Services.Orchestrator
 {
-    public class TestCaseGeneratorService: ITestCaseGeneratorService
+    public class TestCaseGeneratorService : ITestCaseGeneratorService
     {
-        private readonly IUserMessageBuilder _userMessageBuilder;
+        private readonly IJiraIssueService _jiraIssueService;
+        private readonly IJiraRemoteLinksService _jiraRemoteLinksService;
+        private readonly IJiraIssueMapper _jiraIssueMapper;
+        private readonly IUserPromptBuilder _userPromptBuilder;
         private readonly IChatCompletionService _chatCompletionService;
         private readonly IJsonFormatterService _jsonFormatterService;
-        public TestCaseGeneratorService(IUserMessageBuilder userMessageBuilder, IChatCompletionService chatCompletionService, IJsonFormatterService jsonFormatterService)
-        {
+
+        public TestCaseGeneratorService(
+            IJiraIssueService jiraIssueService,
+            IJiraRemoteLinksService jiraRemoteLinksService,
+            IJiraIssueMapper jiraIssueMapper,
+            IUserPromptBuilder userPromptBuilder,
+            IChatCompletionService chatCompletionService,
+            IJsonFormatterService jsonFormatterService)
+        {   
+            _jiraIssueService = jiraIssueService;
+            _jiraRemoteLinksService = jiraRemoteLinksService;
+            _jiraIssueMapper = jiraIssueMapper;
+            _userPromptBuilder = userPromptBuilder;
             _chatCompletionService = chatCompletionService;
-            _userMessageBuilder = userMessageBuilder;
             _jsonFormatterService = jsonFormatterService;
         }
 
-        public async Task<JsonElement> GenerateTestCasesAsync(string JiraId)
+        public async Task<JsonElement> GenerateTestCasesAsync(string jirakey)
         {
-            // stopwatch 
-            Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
 
-            var history = new ChatHistory();
+            if (string.IsNullOrWhiteSpace(jirakey)) 
+            {
+                throw new ArgumentException("Jira key must be provided", nameof(jirakey));
+            }
 
-            string systemPrompt = File.ReadAllText("SystemPrompts/TestCaseGeneratorV3.txt");
+            try
+            {
+                var history = new ChatHistory();
 
-            history.AddSystemMessage(systemPrompt);
-           
-            ChatMessageContentItemCollection userMessage = await _userMessageBuilder.BuildUserMessageAsync(JiraId);
+                // System prompt
+                string systemPrompt = File.ReadAllText("SystemPrompts/TestCaseGeneratorV3.txt");
+                history.AddSystemMessage(systemPrompt);
 
-            history.AddUserMessage(userMessage);
+                // Get Jira issue json with remote links
+                var jsonJiraIssueTask = _jiraIssueService.GetIssueAsync(jirakey);
+                var jsonJiraRemoteLinksTask = _jiraRemoteLinksService.GetRemoteLinksAsync(jirakey);
+                await Task.WhenAll(jsonJiraIssueTask, jsonJiraRemoteLinksTask);
 
-            var response = await _chatCompletionService.GetChatMessageContentAsync(history);
+                // Map issue json to DTO
+                JiraIssueDto jiraIssue = _jiraIssueMapper.MapToDto(jsonJiraIssueTask.Result, jsonJiraRemoteLinksTask.Result);
 
-            var jsonResponse = _jsonFormatterService.FormatJson(response.ToString());
+                // User prompt
+                bool isBugIssue = (jiraIssue.IssueType == IssueType.Bug);
+                ChatMessageContentItemCollection userMessage = await _userPromptBuilder.BuildAsync(jiraIssue, isBugIssue);
+                history.AddUserMessage(userMessage);
 
-            // Time measurment
-            stopwatch.Stop(); 
-            TimeSpan elapsed = stopwatch.Elapsed;
-            Console.WriteLine($"[Timer] Elapsed time: {elapsed.TotalMilliseconds} ms");
+                var response = await _chatCompletionService.GetChatMessageContentAsync(history);
+                var jsonResponse = _jsonFormatterService.FormatJson(response.ToString());
+                return jsonResponse;
 
-            return jsonResponse;
-
+            }
+            catch (Exception ex) when (!(ex is DomainException))
+            {
+                throw new TestCaseGenerationException(jirakey, "An unexpected error has occurred.");
+            }
         }
     }
 }
