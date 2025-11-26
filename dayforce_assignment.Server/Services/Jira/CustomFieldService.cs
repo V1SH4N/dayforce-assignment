@@ -1,30 +1,4 @@
-﻿//using dayforce_assignment.Server.Interfaces.Jira;
-//using System.Text.Json;
-
-//namespace dayforce_assignment.Server.Services.Jira
-//{
-//    public class CustomFieldService: ICustomFieldService 
-//    {
-//        public string GetCustomFieldId(JsonElement jiraJson, string fieldName)
-//        {
-
-//            if (jiraJson.TryGetProperty("names", out var names))
-//            {
-//                foreach (var prop in names.EnumerateObject())
-//                {
-//                    if (prop.Value.GetString() == fieldName)
-//                    {
-//                        return prop.Name.ToString();
-//                    }
-//                }
-//            }
-//            return string.Empty;
-//        }
-//    }
-//}
-
-
-using dayforce_assignment.Server.Exceptions;
+﻿using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Jira;
 using System.Text.Json;
 

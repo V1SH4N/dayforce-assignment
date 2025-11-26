@@ -1,136 +1,4 @@
-﻿//using dayforce_assignment.Server.DTOs.Jira;
-//using dayforce_assignment.Server.Exceptions;
-//using dayforce_assignment.Server.Interfaces.Jira;
-//using HtmlAgilityPack;
-//using System.Text;
-//using System.Text.Json;
-//using System.Text.RegularExpressions;
-
-//namespace dayforce_assignment.Server.Services.Jira
-//{
-//    public class TriageSubtaskCleanerService : ITriageSubtaskCleanerService
-//    {
-//        private const string DocType = "doc";
-//        private const string Paragraph = "paragraph";
-//        private const string Heading = "heading";
-//        private const string ListItem = "listItem";
-//        private const string InlineCard = "inlineCard";
-//        public TriageSubtaskDto CleanTriageSubtask(JsonElement triageSubtask)
-//        {
-//            // Triage key
-//            var triageKey = triageSubtask.TryGetProperty("key", out var keyProp) ? keyProp.GetString() : null;
-//            //if (string.IsNullOrWhiteSpace(triageKey))
-//            //    throw new JiraIssueParsingException("unknown", "Missing Jira key");
-
-//            var dto = new TriageSubtaskDto { Key = triageKey };
-
-//            if (triageSubtask.TryGetProperty("fields", out var fields))
-//            {
-//                // Triage title
-//                dto.Title = fields.TryGetProperty("summary", out var summary) ? summary.GetString() ?? string.Empty : string.Empty;
-//            }
-
-
-//            // Attachments
-//            if (fields.TryGetProperty("attachment", out var attachments) &&
-//                attachments.ValueKind == JsonValueKind.Array)
-//            {
-//                dto.Attachments = new List<Attachment>();
-//                foreach (var attachment in attachments.EnumerateArray())
-//                {
-//                    var content = attachment.TryGetProperty("content", out var c) ? c.GetString() ?? string.Empty : string.Empty;
-//                    var mimeType = attachment.TryGetProperty("mimeType", out var t) ? t.GetString() ?? string.Empty : string.Empty;
-
-//                    if (!string.IsNullOrWhiteSpace(content))
-//                    {
-//                        dto.Attachments.Add(new Attachment
-//                        {
-//                            DownloadLink = content,
-//                            MediaType = mimeType
-//                        });
-//                    }
-//                }
-//            }
-
-
-
-//            // Extract Comments (from fields.comment.comments[i].body)
-//            var sbComments = new StringBuilder();
-
-//            if (fields.TryGetProperty("comment", out var commentSection) &&
-//                commentSection.TryGetProperty("comments", out var commentArray) &&
-//                commentArray.ValueKind == JsonValueKind.Array)
-//            {
-//                foreach (var comment in commentArray.EnumerateArray())
-//                {
-//                    if (comment.TryGetProperty("body", out var body) &&
-//                        body.ValueKind == JsonValueKind.Object &&
-//                        body.TryGetProperty("type", out var bodyType) &&
-//                        bodyType.GetString() == DocType)
-//                    {
-//                        ExtractPlainTextFromDoc(body, sbComments);
-//                        sbComments.AppendLine().AppendLine();
-//                    }
-//                }
-//            }
-
-//            dto.Comments = NormalizeText(sbComments.ToString());
-
-//            return dto;
-//        }
-
-
-
-
-
-//        private static void ExtractPlainTextFromDoc(JsonElement node, StringBuilder sb)
-//        {
-//            if (node.ValueKind != JsonValueKind.Object) return;
-
-//            if (node.TryGetProperty("text", out var textProp))
-//                sb.Append(textProp.GetString());
-
-//            if (node.TryGetProperty("type", out var typeProp))
-//            {
-//                var type = typeProp.GetString();
-
-//                if (type == InlineCard &&
-//                    node.TryGetProperty("attrs", out var attrs) &&
-//                    attrs.TryGetProperty("url", out var urlProp))
-//                {
-//                    var url = urlProp.GetString();
-//                    if (!string.IsNullOrWhiteSpace(url))
-//                    {
-//                        sb.AppendLine();
-//                        sb.Append(url);
-//                        sb.AppendLine();
-//                    }
-//                }
-
-//                if (type is Paragraph or Heading or ListItem)
-//                    sb.AppendLine();
-//            }
-
-//            if (node.TryGetProperty("content", out var contentArray) && contentArray.ValueKind == JsonValueKind.Array)
-//            {
-//                foreach (var child in contentArray.EnumerateArray())
-//                    ExtractPlainTextFromDoc(child, sb);
-//            }
-//        }
-
-//        private static string NormalizeText(string input)
-//        {
-//            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
-
-//            input = input.Replace("\r\n", "\n").Replace("\r", "\n");
-//            input = Regex.Replace(input, @"(\n\s*){2,}", "\n\n"); // Reduce excessive blank lines
-//            return input.Trim();
-//        }
-//    }
-//}
-
-
-using dayforce_assignment.Server.DTOs.Common;
+﻿using dayforce_assignment.Server.DTOs.Common;
 using dayforce_assignment.Server.DTOs.Jira;
 using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Jira;
@@ -164,9 +32,7 @@ namespace dayforce_assignment.Server.Services.Jira
 
                 var dto = new TriageSubtaskDto { Key = triageKey };
 
-                // ---------------------------
                 // Fields
-                // ---------------------------
                 if (!triageSubtask.TryGetProperty("fields", out var fields))
                     throw new TriageSubtaskCleaningException(triageKey, "Missing 'fields' section.");
 
@@ -175,9 +41,7 @@ namespace dayforce_assignment.Server.Services.Jira
                     ? summary.GetString() ?? string.Empty
                     : string.Empty;
 
-                // ---------------------------
                 // Attachments
-                // ---------------------------
                 dto.Attachments = new List<Attachment>();
 
                 if (fields.TryGetProperty("attachment", out var attachments) &&
@@ -204,9 +68,7 @@ namespace dayforce_assignment.Server.Services.Jira
                     }
                 }
 
-                // ---------------------------
                 // Comments extraction
-                // ---------------------------
                 var sbComments = new StringBuilder();
 
                 if (fields.TryGetProperty("comment", out var commentSection) &&
@@ -240,9 +102,7 @@ namespace dayforce_assignment.Server.Services.Jira
             }
         }
 
-        // ----------------------------------------------
         // Helpers
-        // ----------------------------------------------
         private static void ExtractPlainTextFromDoc(JsonElement node, StringBuilder sb)
         {
             if (node.ValueKind != JsonValueKind.Object)

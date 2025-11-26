@@ -13,7 +13,7 @@ namespace dayforce_assignment.Server.Services.Confluence
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<JsonElement> GetConfluenceCommentsAsync(string baseUrl, string id)
+        public async Task<JsonElement> GetCommentsAsync(string baseUrl, string id)
         {
             var client = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
             HttpResponseMessage response;

@@ -21,7 +21,7 @@ namespace dayforce_assignment.Server.Services.Confluence
             _jsonFormatterService = jsonFormatterService;
         }
 
-        public async Task<ConfluencePageReferencesDto> GetConfluencePageReferencesAsync(JiraIssueDto jiraStory)
+        public async Task<ConfluencePageReferencesDto> GetReferencesAsync(JiraIssueDto jiraStory)
         {
             var jiraId = jiraStory?.Key ?? "unknown";
 

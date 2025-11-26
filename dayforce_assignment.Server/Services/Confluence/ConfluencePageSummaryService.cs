@@ -11,27 +11,27 @@ namespace dayforce_assignment.Server.Services.Confluence
     {
         private readonly IChatCompletionService _chatCompletionService;
         private readonly IConfluenceAttachmentsService _confluenceAttachmentsService;
-        private readonly IConfluenceAttachmentsCleaner _confluenceAttachmentsCleaner;
+        private readonly IConfluenceAttachmentsMapper _confluenceAttachmentsMapper;
         private readonly IAttachmentDownloadService _attachmentDownloadService;
         private readonly ILogger<GlobalExceptionMiddleware> _logger;
 
 
         public ConfluencePageSummaryService(
             IChatCompletionService chatCompletionService,
-            IConfluenceAttachmentsCleaner confluenceAttachmentsCleaner,
+            IConfluenceAttachmentsMapper confluenceAttachmentsMapper,
             IConfluenceAttachmentsService confluenceAttachmentsService,
             IAttachmentDownloadService attachmentDownloadService,
             ILogger<GlobalExceptionMiddleware> logger
             )
         {
             _chatCompletionService = chatCompletionService;
-            _confluenceAttachmentsCleaner = confluenceAttachmentsCleaner;
+            _confluenceAttachmentsMapper = confluenceAttachmentsMapper;
             _confluenceAttachmentsService = confluenceAttachmentsService;
             _attachmentDownloadService = attachmentDownloadService;
             _logger = logger;
         }
 
-        public async Task<string> SummarizeConfluencePageAsync(ConfluencePageDto confluencePage, string baseUrl)
+        public async Task<string> SummarizePageAsync(ConfluencePageDto confluencePage, string baseUrl)
         {
             var pageId = confluencePage?.Id ?? "unknown";
 
@@ -44,8 +44,8 @@ namespace dayforce_assignment.Server.Services.Confluence
                 history.AddSystemMessage(systemPrompt);
 
                 // Get Confluence attachments 
-                var rawAttachments = await _confluenceAttachmentsService.GetConfluenceAttachmentsAsync(baseUrl, pageId);
-                var cleanedAttachments = _confluenceAttachmentsCleaner.CleanConfluenceAttachments(rawAttachments);
+                var rawAttachments = await _confluenceAttachmentsService.GetAttachmentsAsync(baseUrl, pageId);
+                var cleanedAttachments = _confluenceAttachmentsMapper.MapToDto(rawAttachments);
 
                 history.AddUserMessage(JsonSerializer.Serialize(confluencePage));
 

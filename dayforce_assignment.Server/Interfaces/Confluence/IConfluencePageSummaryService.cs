@@ -8,7 +8,7 @@ namespace dayforce_assignment.Server.Interfaces.Confluence
 {
     public interface IConfluencePageSummaryService
     {
-        Task<string> SummarizeConfluencePageAsync(ConfluencePageDto confluencePage, string baseUrl);
+        Task<string> SummarizePageAsync(ConfluencePageDto confluencePage, string baseUrl);
     }
 }
 

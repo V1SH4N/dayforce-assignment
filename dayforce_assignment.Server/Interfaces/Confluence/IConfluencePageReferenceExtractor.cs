@@ -6,6 +6,6 @@ namespace dayforce_assignment.Server.Interfaces.Confluence
 {
     public interface IConfluencePageReferenceExtractor
     {
-        Task<ConfluencePageReferencesDto> GetConfluencePageReferencesAsync(JiraIssueDto jiraStory);
+        Task<ConfluencePageReferencesDto> GetReferencesAsync(JiraIssueDto jiraStory);
     }
 }

@@ -46,7 +46,7 @@ namespace dayforce_assignment.Server.Services.Orchestrator
                 var history = new ChatHistory();
 
                 // System prompt
-                string systemPrompt = File.ReadAllText("SystemPrompts/TestCaseGeneratorV3.txt");
+                string systemPrompt = File.ReadAllText("SystemPrompts/TestCaseGeneratorV6.txt");
                 history.AddSystemMessage(systemPrompt);
 
                 // Get Jira issue json with remote links

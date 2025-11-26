@@ -4,6 +4,6 @@ namespace dayforce_assignment.Server.Interfaces.Jira
 {
     public interface IJiraRemoteLinksService
     {
-        Task<JsonElement> GetJiraRemoteLinksAsync(string jiraId);
+        Task<JsonElement> GetRemoteLinksAsync(string jiraId);
     }
 }

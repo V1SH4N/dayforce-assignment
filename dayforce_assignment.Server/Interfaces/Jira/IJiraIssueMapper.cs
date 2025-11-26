@@ -3,8 +3,8 @@ using dayforce_assignment.Server.DTOs.Jira;
 
 namespace dayforce_assignment.Server.Interfaces.Jira
 {
-    public interface IJiraIssueCleaner
+    public interface IJiraIssueMapper
     {
-        JiraIssueDto CleanJiraIssue(JsonElement jiraStory, JsonElement jiraRemoteLinks);
+        JiraIssueDto MapToDto(JsonElement jiraIssue, JsonElement jiraRemoteLinks);
     }
 }

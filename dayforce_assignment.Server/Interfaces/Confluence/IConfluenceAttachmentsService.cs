@@ -4,6 +4,6 @@ namespace dayforce_assignment.Server.Interfaces.Confluence
 {
     public interface IConfluenceAttachmentsService
     {
-        Task<JsonElement> GetConfluenceAttachmentsAsync(string baseurl, string pageId);
+        Task<JsonElement> GetAttachmentsAsync(string baseurl, string pageId);
     }
 }

@@ -99,7 +99,7 @@ using dayforce_assignment.Server.DTOs.Jira;
 
 
 
-                // Doc Content
+                // Description
                 var sbDocContent = new StringBuilder();
                 foreach (var prop in fields.EnumerateObject())
                 {
@@ -115,7 +115,7 @@ using dayforce_assignment.Server.DTOs.Jira;
                         sbDocContent.AppendLine().AppendLine();
                     }
                 }
-                dto.DocContent = NormalizeText(sbDocContent.ToString());
+                dto.Description = NormalizeText(sbDocContent.ToString());
 
 
                 // Attachments

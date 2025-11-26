@@ -1,0 +1,10 @@
+﻿using dayforce_assignment.Server.DTOs.Jira;
+using System.Text.Json;
+
+namespace dayforce_assignment.Server.Interfaces.Jira
+{
+    public interface ITriageSubtaskMapper
+    {
+        TriageSubtaskDto MapToDto(JsonElement TriageSubtask);
+    }
+}

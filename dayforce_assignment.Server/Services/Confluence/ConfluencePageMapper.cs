@@ -8,9 +8,9 @@ using System.Web;
 
 namespace dayforce_assignment.Server.Services.Confluence
 {
-    public class ConfluencePageCleaner : IConfluencePageCleaner
+    public class ConfluencePageMapper : IConfluencePageMapper
     {
-        public ConfluencePageDto CleanConfluencePage(JsonElement confluencePage, JsonElement confluenceComments)
+        public ConfluencePageDto MapToDto(JsonElement confluencePage, JsonElement confluenceComments)
         {
             try
             {
@@ -38,7 +38,7 @@ namespace dayforce_assignment.Server.Services.Confluence
                 {
                     Id = pageId,
                     Title = confluencePage.TryGetProperty("title", out var titleProp) ? titleProp.GetString() ?? string.Empty : string.Empty,
-                    BodyStorageValue = CleanHtml(pageBody),
+                    Body = CleanHtml(pageBody),
                     Comments = commentsList
                 };
             }

@@ -6,9 +6,9 @@ using System.Text.Json;
 
 namespace dayforce_assignment.Server.Services.Confluence
 {
-    public class ConfluenceAttachmentsCleaner : IConfluenceAttachmentsCleaner
+    public class ConfluenceAttachmentsMapper : IConfluenceAttachmentsMapper
     {
-        public ConfluencePageAttachmentsDto CleanConfluenceAttachments(JsonElement payload)
+        public ConfluencePageAttachmentsDto MapToDto(JsonElement payload)
         {
             try
             {

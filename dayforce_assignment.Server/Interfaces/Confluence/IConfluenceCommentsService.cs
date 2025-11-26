@@ -4,6 +4,6 @@ namespace dayforce_assignment.Server.Interfaces.Confluence
 {
     public interface IConfluenceCommentsService
     {
-        Task<JsonElement> GetConfluenceCommentsAsync(string baseurl, string pageId);
+        Task<JsonElement> GetCommentsAsync(string baseurl, string pageId);
     }
 }

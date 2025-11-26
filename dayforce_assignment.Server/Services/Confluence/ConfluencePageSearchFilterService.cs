@@ -32,7 +32,7 @@ namespace dayforce_assignment.Server.Services.Confluence
             {
                 var history = new ChatHistory();
 
-                string systemPrompt = File.ReadAllText("SystemPrompts/ConfluencePageSearchFilterV2.txt");
+                string systemPrompt = File.ReadAllText("SystemPrompts/ConfluencePageSearchFilterV3.txt");
                 history.AddSystemMessage(systemPrompt);
 
                 history.AddUserMessage(JsonSerializer.Serialize(jiraStory));

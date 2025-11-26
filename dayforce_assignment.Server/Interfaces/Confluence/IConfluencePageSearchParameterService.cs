@@ -6,6 +6,6 @@ namespace dayforce_assignment.Server.Interfaces.Confluence
 {
     public interface IConfluencePageSearchParameterService
     {
-        Task<ConfluenceSearchParametersDto> GetSearchParametersAsync(JiraIssueDto jiraStory);
+        Task<ConfluenceSearchParametersDto> GetParametersAsync(JiraIssueDto jiraStory);
     }
 }

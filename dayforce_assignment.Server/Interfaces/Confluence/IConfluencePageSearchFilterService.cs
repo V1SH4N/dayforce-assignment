@@ -5,7 +5,7 @@ namespace dayforce_assignment.Server.Interfaces.Confluence
 {
     public interface IConfluencePageSearchFilterService
     {
-        Task<ConfluenceSearchResultsDto> FilterSearchResultAsync (JiraIssueDto jiraStory, ConfluenceSearchResultsDto searchresult);
+        Task<ConfluenceSearchResultsDto> FilterResultAsync (JiraIssueDto jiraStory, ConfluenceSearchResultsDto searchresult);
 
     }
 }

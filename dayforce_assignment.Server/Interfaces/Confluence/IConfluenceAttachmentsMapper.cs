@@ -3,8 +3,8 @@ using System.Text.Json;
 
 namespace dayforce_assignment.Server.Interfaces.Confluence
 {
-    public interface IConfluencePageCleaner
+    public interface IConfluenceAttachmentsMapper
     {
-        ConfluencePageDto CleanConfluencePage(JsonElement confluencePage, JsonElement confluenceComments);
+        ConfluencePageAttachmentsDto MapToDto(JsonElement attachment);
     }
 }
