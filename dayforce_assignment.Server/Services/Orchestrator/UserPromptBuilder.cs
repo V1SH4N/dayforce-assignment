@@ -1,4 +1,5 @@
-﻿using dayforce_assignment.Server.DTOs.Confluence;
+﻿using dayforce_assignment.Server.DTOs.Common;
+using dayforce_assignment.Server.DTOs.Confluence;
 using dayforce_assignment.Server.DTOs.Jira;
 using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Common;
@@ -7,129 +8,181 @@ using dayforce_assignment.Server.Interfaces.Jira;
 using dayforce_assignment.Server.Interfaces.Orchestrator;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
+
 
 namespace dayforce_assignment.Server.Services.Orchestrator
 {
     public class UserPromptBuilder : IUserPromptBuilder
     {
+        private readonly IJiraMapperService _jiraMapperService;
         private readonly ITriageSubtaskService _triageSubtaskService;
-        private readonly ITriageSubtaskMapper _triageSubtaskMapper;
+
+        private readonly IConfluenceHttpClientService _confluenceHttpClientService;
+        private readonly IConfluenceMapperService _confluenceMapperService;
         private readonly IConfluencePageReferenceExtractor _confluencePageReferenceExtractor;
-        private readonly IConfluencePageService _confluencePageService;
-        private readonly IConfluencePageMapper _confluencePageCleaner;
-        private readonly IAttachmentListDownloadService _attachmentListDownloadService;
+        private readonly IConfluencePageSummaryService _confluencePageSummaryService;
+
+
+        private readonly IAttachmentService _attachmentService;
         private readonly IConfluencePageSearchOrchestrator _confluencePageSearchOrchestrator;
-        private readonly IConfluenceCommentsService _confluenceCommentsService;
-        private readonly IConfluencePageSummaryService _confluencePageSummary;
+
         private readonly ILogger<GlobalExceptionMiddleware> _logger;
 
 
 
         public UserPromptBuilder(
+            IJiraMapperService jiraMapperService,
             ITriageSubtaskService triageSubtaskService,
-            ITriageSubtaskMapper triageSubtaskMapper,
+
+            IConfluenceHttpClientService confluenceHttpClientService,
+            IConfluenceMapperService confluenceMapperService,
             IConfluencePageReferenceExtractor confluencePageReferenceExtractor,
-            IConfluencePageService confluencePageService,
-            IConfluencePageMapper confluencePageCleaner,
-            IConfluenceAttachmentsService confluenceAttachmentsService,
-            IConfluenceAttachmentsMapper confluenceAttachmentsCleaner,
-            IAttachmentListDownloadService attachmentListDownloadService,
+            IConfluencePageSummaryService confluencePageSummaryService,
+           
+            IAttachmentService attachmentService,
+
+
             IConfluencePageSearchOrchestrator confluencePageSearchOrchestrator,
-            IConfluenceCommentsService confluenceCommentsService,
-            IConfluencePageSummaryService confluencePageSummary,
+
             ILogger<GlobalExceptionMiddleware> logger
         )
         {
+            _jiraMapperService = jiraMapperService;
             _triageSubtaskService = triageSubtaskService;
-            _triageSubtaskMapper = triageSubtaskMapper;
+
+            _confluenceHttpClientService = confluenceHttpClientService;
+            _confluenceMapperService = confluenceMapperService;
             _confluencePageReferenceExtractor = confluencePageReferenceExtractor;
-            _confluencePageService = confluencePageService;
-            _confluencePageCleaner = confluencePageCleaner;
-            _attachmentListDownloadService = attachmentListDownloadService;
+            _confluencePageSummaryService = confluencePageSummaryService;
+
+            _attachmentService = attachmentService;
+
             _confluencePageSearchOrchestrator = confluencePageSearchOrchestrator;
-            _confluenceCommentsService = confluenceCommentsService;
-            _confluencePageSummary = confluencePageSummary;
+
             _logger = logger;
         }
 
-        public async Task<ChatMessageContentItemCollection> BuildAsync(JiraIssueDto jiraIssue, bool isBugIssue)
+
+        // Builds user prompt by adding jira issue, relevant confluence pages, and triage subtask (if issue is a bug).
+        public async Task<ChatMessageContentItemCollection> BuildAsync(JiraIssueDto jiraIssue, bool isBugIssue, bool summarizeAttachment)
         {
             var userPrompt = new ChatMessageContentItemCollection();
-            var jiraKey = jiraIssue.Key;
 
-            try
+            await AddJiraIssueAsync(userPrompt, jiraIssue, summarizeAttachment);
+
+            ConfluencePageReferencesDto confluencePageReferences = await GetRelevantConfluencePagesAsync(jiraIssue, isBugIssue);
+
+            await AddConfluencePagesAsync(userPrompt, confluencePageReferences, summarizeAttachment);
+
+            if (isBugIssue)
             {
-                // Add Jira issue to user prompt
-                await AddJiraIssueAsync(userPrompt, jiraIssue);
-
-                // Get list of relevant confluence page references
-                ConfluencePageReferencesDto confluencePageReferences = await GetRelevantConfluencePagesAsync(jiraIssue, isBugIssue);
-
-                // Add summary of relevant confluence pages to user prompt
-                await AddConfluencePagesAsync(userPrompt, confluencePageReferences);
-
-                if (isBugIssue)
-                {
-                    // Add triage subtask to user prompt
-                    await AddTriageSubtaskAsync(userPrompt, jiraIssue);
-                }
-
-                return userPrompt;
-
+                await AddTriageSubtaskAsync(userPrompt, jiraIssue, summarizeAttachment);
             }
-            catch (Exception ex) when (!(ex is DomainException))
-            {
-                throw new UserMessageBuilderException(jiraKey, "An unexpected error has occured.");
-            }
+
+            return userPrompt;
         }
 
 
 
-        // Task which adds jira issue along with any attachment to user prompt
-        private async Task AddJiraIssueAsync(ChatMessageContentItemCollection userPrompt, JiraIssueDto jiraIssue)
+        // Adds jira issue along with any attachments to user prompt.
+        private async Task AddJiraIssueAsync(ChatMessageContentItemCollection userPrompt, JiraIssueDto jiraIssue, bool summarizeAttachment)
         {
             userPrompt.Add(new TextContent("Jira issue:"));
             userPrompt.Add(new TextContent(JsonSerializer.Serialize(jiraIssue, new JsonSerializerOptions { WriteIndented = true })));
 
             if (jiraIssue.Attachments?.Any() == true)
             {
-                var downloadedAttachments = await _attachmentListDownloadService.DownloadAttachmentsAsync(jiraIssue.Attachments);
-                foreach (var attachment in downloadedAttachments)
+                await AddAttachmentsAsync(userPrompt, jiraIssue.Attachments, summarizeAttachment, "Jira issue attachments:");
+            }
+        }
+
+
+
+        // Find subtask with type "Triage" and add it (with comments and attachments) to user prompt.
+        private async Task AddTriageSubtaskAsync(ChatMessageContentItemCollection userPrompt, JiraIssueDto jiraIssue, bool summarizeAttachment)
+        {
+            try
+            {
+                JsonElement jsonTriageSubtask = await _triageSubtaskService.GetSubtaskAsync(jiraIssue);
+                TriageSubtaskDto triageSubtask = _jiraMapperService.MapTriageSubtaskToDto(jsonTriageSubtask);
+
+                userPrompt.Add(new TextContent("Triage subtask:"));
+                userPrompt.Add(new TextContent(JsonSerializer.Serialize(triageSubtask, new JsonSerializerOptions { WriteIndented = true })));
+
+                if (triageSubtask.Attachments?.Any() == true)
+                {
+                    await AddAttachmentsAsync(userPrompt, triageSubtask.Attachments, summarizeAttachment, "Triage subtask attachments:");
+                }
+            }
+            catch{
+                _logger.LogWarning("Triage subtask not found for Jira issue {JiraIssueKey}", jiraIssue.Key);
+                return;
+            }
+        }
+
+
+        // Downloads attachment, summarize if (summarizeAttachment is true), then adds it to user prompt.
+        private async Task AddAttachmentsAsync(ChatMessageContentItemCollection userPrompt, IEnumerable<Attachment> attachments, bool summarizeAttachment, string header)
+        {
+            userPrompt.Add(new TextContent(header + "\n"));
+
+            if (summarizeAttachment)
+            {
+                List<string> summarizedAttachments = await _attachmentService.SummarizeAttachmentListAsync(attachments);
+                foreach (string attachment in summarizedAttachments)
+                {
+                    userPrompt.Add(new TextContent(attachment));
+                }
+            }
+            else
+            {
+                List<KernelContent> downloadedAttachments = await _attachmentService.DownloadAttachmentListAsync(attachments);
+                foreach (KernelContent attachment in downloadedAttachments)
                 {
                     userPrompt.Add(attachment);
                 }
             }
         }
-        
-        // Task which extracts any relevant confluence pages from jira issue. If (none found & issue is not a bug), searches for relevant confluence pages. 
+
+
+
+        // Extracts any relevant confluence pages references from jira issue. If (none found & issue is not a bug), searches for relevant confluence pages references. 
         private async Task<ConfluencePageReferencesDto> GetRelevantConfluencePagesAsync(JiraIssueDto jiraIssue, bool isBugIssue)
         {
             ConfluencePageReferencesDto confluencePageReferences = await _confluencePageReferenceExtractor.GetReferencesAsync(jiraIssue);
-
+                
             if (!confluencePageReferences.ConfluencePages.Any() && !isBugIssue)
             {
-                confluencePageReferences = await _confluencePageSearchOrchestrator.SearchConfluencePageReferencesAsync(jiraIssue);
+                try
+                {
+                    confluencePageReferences = await _confluencePageSearchOrchestrator.SearchConfluencePageReferencesAsync(jiraIssue);
+                    return confluencePageReferences ?? new ConfluencePageReferencesDto();
+                }
+                catch
+                {
+                    return new ConfluencePageReferencesDto();
+                }
             }
-
-            return confluencePageReferences ?? new ConfluencePageReferencesDto();
+            return confluencePageReferences;
         }
 
-        // task which adds a summary of a each confluence page (including its attachments) to user prompt.
-        private async Task AddConfluencePagesAsync(ChatMessageContentItemCollection userPrompt, ConfluencePageReferencesDto confluencePageReferences)
+
+
+        // Adds a summary of a each confluence page (including its attachments) to user prompt.
+        private async Task AddConfluencePagesAsync(ChatMessageContentItemCollection userPrompt, ConfluencePageReferencesDto confluencePageReferences, bool summarizeAttachment)
         {
             var confluencePageTasks = confluencePageReferences.ConfluencePages.Select(async page =>
             {
                 try
                 {
-                    var jsonConfluencePageTask = _confluencePageService.GetPageAsync(page.baseUrl, page.pageId);
-                    var jsonConfluenceCommentsTask = _confluenceCommentsService.GetCommentsAsync(page.baseUrl, page.pageId);
-                    await Task.WhenAll(jsonConfluencePageTask, jsonConfluenceCommentsTask);
+                    JsonElement jsonConfluencePage = await _confluenceHttpClientService.GetPageAsync(page.baseUrl, page.pageId);
+                    JsonElement jsonConfluenceComments = await _confluenceHttpClientService.GetCommentsAsync(page.baseUrl, page.pageId);
 
-                    ConfluencePageDto confluencePage = _confluencePageCleaner.MapToDto(jsonConfluencePageTask.Result, jsonConfluenceCommentsTask.Result);
+                    ConfluencePageDto confluencePage = _confluenceMapperService.MapPageToDto(jsonConfluencePage, jsonConfluenceComments);
 
-                    String summarizedConfluencePage = await _confluencePageSummary.SummarizePageAsync(confluencePage, page.baseUrl);
-
+                    string summarizedConfluencePage = await _confluencePageSummaryService.SummarizePageAsync(confluencePage, page.baseUrl, summarizeAttachment);
                     return $"Consider the following summarized confluence page only if it is relevant to the above Jira issue:\n{summarizedConfluencePage}";
                 }
                 catch (Exception ex)
@@ -139,29 +192,15 @@ namespace dayforce_assignment.Server.Services.Orchestrator
                 }
             });
 
-            var results = await Task.WhenAll(confluencePageTasks);
+            var taskResults = await Task.WhenAll(confluencePageTasks);
 
-            foreach (var pageContent in results.Where(c => !string.IsNullOrEmpty(c)))
+            foreach (string pageSummary in taskResults.Where(summary => !string.IsNullOrEmpty(summary))!)
             {
-                userPrompt.Add(new TextContent(pageContent));
+                userPrompt.Add(new TextContent(pageSummary));
             }
         }
 
-        // Task which find subtask with type "Triage" and add it (with comments and attachments) to user prompt.
-        private async Task AddTriageSubtaskAsync(ChatMessageContentItemCollection userPrompt, JiraIssueDto jiraIssue)
-        {
-            JsonElement jsonTriageSubtask = await _triageSubtaskService.GetSubTaskAsync(jiraIssue);
-            TriageSubtaskDto triageSubtask = _triageSubtaskMapper.MapToDto(jsonTriageSubtask);
 
-            userPrompt.Add(new TextContent("Triage subtask:"));
-            userPrompt.Add(new TextContent(JsonSerializer.Serialize(triageSubtask, new JsonSerializerOptions { WriteIndented = true })));
 
-            if (triageSubtask.Attachments?.Any() == true)
-            {
-                var downloadedAttachments = await _attachmentListDownloadService.DownloadAttachmentsAsync(triageSubtask.Attachments);
-                foreach (var attachment in downloadedAttachments)
-                    userPrompt.Add(attachment);
-            }
-        }
     }
 }

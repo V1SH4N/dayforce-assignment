@@ -6,40 +6,23 @@ namespace dayforce_assignment.Server.Services.Jira
 {
     public class CustomFieldService : ICustomFieldService
     {
-        public string GetCustomFieldId(JsonElement jiraJson, string fieldName)
+        // Get custom field id mapping for fieldName. Returns empty string if not found. 
+        public string GetCustomFieldId(JsonElement jsonIssue, string fieldName)
         {
-            try
+            if (!jsonIssue.TryGetProperty("names", out var names) ||
+                names.ValueKind != JsonValueKind.Object)
             {
-                if (jiraJson.ValueKind == JsonValueKind.Undefined ||
-                    jiraJson.ValueKind == JsonValueKind.Null)
-                {
-                    throw new JiraCustomFieldLookupException("Input JSON is null or undefined.");
-                }
-
-                if (!jiraJson.TryGetProperty("names", out var names) ||
-                    names.ValueKind != JsonValueKind.Object)
-                {
-                    return string.Empty;
-                }
-
-                foreach (var prop in names.EnumerateObject())
-                {
-                    if (prop.Value.GetString() == fieldName)
-                    {
-                        return prop.Name;
-                    }
-                }
-
                 return string.Empty;
             }
-            catch (JsonException ex)
+
+            foreach (var prop in names.EnumerateObject())
             {
-                throw new JiraCustomFieldLookupException($"Malformed JSON structure: {ex.Message}");
+                if (prop.Value.ValueKind == JsonValueKind.String && prop.Value.GetString() == fieldName)
+                {
+                    return prop.Name;
+                }
             }
-            catch (Exception ex) when (ex is not JiraException)
-            {
-                throw new JiraCustomFieldLookupException($"An unexpected error has occured");
-            }
+            return string.Empty;
         }
     }
 }

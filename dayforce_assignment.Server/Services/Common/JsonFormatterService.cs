@@ -21,8 +21,8 @@ namespace dayforce_assignment.Server.Services.Common
 
             try
             {
-                var jsonDocument = JsonDocument.Parse(trimmedResponse);
-                return jsonDocument.RootElement;
+                var jsonResponse = JsonSerializer.Deserialize<JsonElement>(trimmedResponse);
+                return jsonResponse;
             }
             catch (JsonException ex)
             {

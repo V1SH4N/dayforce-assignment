@@ -10,87 +10,71 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 {
     public class ConfluencePageSearchOrchestrator : IConfluencePageSearchOrchestrator
     {
-        private readonly IConfluencePageSearchParameterService _confluencePageSearchParameterService;
-        private readonly IConfluencePageSearchService _confluencePageSearchService;
-        private readonly IConfluencePageSearchFilterService _confluencePageSearchFilterService;
+        private readonly IConfluenceSearchService _confluenceSearchService;
         private readonly string _baseUrl;
 
         public ConfluencePageSearchOrchestrator(
-            IConfluencePageSearchParameterService confluencePageSearchParameterService,
-            IConfluencePageSearchService confluencePageSearchService,
-            IConfluencePageSearchFilterService confluencePageSearchFilterService,
+            IConfluenceSearchService confluenceSearchService,
             IConfiguration configuration)
         {
-            _confluencePageSearchParameterService = confluencePageSearchParameterService;
-            _confluencePageSearchService = confluencePageSearchService;
-            _confluencePageSearchFilterService = confluencePageSearchFilterService;
+            _confluenceSearchService = confluenceSearchService;
             _baseUrl = configuration["Atlassian:BaseUrl"] ?? throw new AtlassianConfigurationException("Default Atlassian base URL is not configured."); ;
         }
 
         public async Task<ConfluencePageReferencesDto> SearchConfluencePageReferencesAsync(JiraIssueDto jiraIssue)
         {
-            try
+            // Get search query parameters
+            ConfluenceSearchParametersDto searchParametersList = await _confluenceSearchService.GetParametersAsync(jiraIssue);
+
+            if (!searchParametersList.SearchParameters.Any())
+                return new ConfluencePageReferencesDto();
+
+
+            // Execute search tasks in parallel
+            var pagesMetadata = new ConcurrentDictionary<string, ConfluencePageMetadata>();
+
+            var searchTasks = searchParametersList.SearchParameters.Select(async searchParameter =>
             {
-                // Get search parameters
-                ConfluenceSearchParametersDto searchParametersList = await _confluencePageSearchParameterService.GetParametersAsync(jiraIssue);
+                JsonElement searchResult = await _confluenceSearchService.SearchPageAsync(searchParameter);
 
-                var pagesMetadata = new ConcurrentBag<ConfluencePageMetadata>();
-
-                // Execute search tasks in parallel
-                var searchTasks = searchParametersList.SearchParameters.Select(async searchParameter =>
+                if (searchResult.TryGetProperty("results", out JsonElement results))
                 {
-                    JsonElement searchResult = await _confluencePageSearchService.SearchPageAsync(searchParameter);
-
-                    if (searchResult.TryGetProperty("results", out var results))
+                    foreach (JsonElement item in results.EnumerateArray())
                     {
-                        foreach (var item in results.EnumerateArray())
-                        {
-                            var pageMetadata = new ConfluencePageMetadata
-                            {
-                                Id = item.GetProperty("id").GetString() ?? string.Empty,
-                                Title = item.GetProperty("title").GetString() ?? string.Empty
-                            };
+                        string id = item.GetProperty("id").GetString() ?? string.Empty;
+                        string title = item.GetProperty("title").GetString() ?? string.Empty;
 
-                            if (!string.IsNullOrEmpty(pageMetadata.Id) && !pagesMetadata.Any(p => p.Id == pageMetadata.Id))
-                            {
-                                pagesMetadata.Add(pageMetadata);
-                            }
+                        if (!string.IsNullOrEmpty(id))
+                        {
+                            pagesMetadata.TryAdd(id, new ConfluencePageMetadata { Id = id, Title = title });
                         }
                     }
-                });
-
-                await Task.WhenAll(searchTasks);
-
-                var searchPagesMetadata = new ConfluenceSearchResultsDto
-                {
-                    ConfluencePagesMetadata = pagesMetadata.ToList()
-                };
-
-                // Filter search results
-                var filteredSearchPagesMetadata = await _confluencePageSearchFilterService.FilterResultAsync(jiraIssue, searchPagesMetadata);
-
-                // Convert filtered search results to ConfluencePageReferencesDto
-                var confluencePageReferences = new ConfluencePageReferencesDto();
-
-                foreach (var result in filteredSearchPagesMetadata.ConfluencePagesMetadata)
-                {
-                    confluencePageReferences.ConfluencePages.Add(new ConfluencePage
-                    {
-                        baseUrl = _baseUrl,
-                        pageId = result.Id
-                    });
                 }
+            });
 
-                return confluencePageReferences;
-            }
-            catch (DomainException)
+            await Task.WhenAll(searchTasks);
+
+            var searchResults = new ConfluenceSearchResultsDto
             {
-                throw; // propagate known domain exceptions
-            }
-            catch (Exception)
+                ConfluencePagesMetadata = pagesMetadata.Values.ToList()
+            };
+
+            // Filter search results
+            ConfluenceSearchResultsDto filteredSearchResults = await _confluenceSearchService.FilterResultAsync(jiraIssue, searchResults);
+
+            // Convert filtered search results to ConfluencePageReferencesDto
+            var confluencePageReferences = new ConfluencePageReferencesDto();
+
+            foreach (ConfluencePageMetadata result in filteredSearchResults.ConfluencePagesMetadata)
             {
-                throw new ConfluencePageSearchOrchestratorException(jiraIssue.Key, "An unexpected error has occured");
+                confluencePageReferences.ConfluencePages.Add(new ConfluencePage
+                {
+                    baseUrl = _baseUrl,
+                    pageId = result.Id
+                });
             }
+
+            return confluencePageReferences;
         }
     }
 }

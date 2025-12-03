@@ -16,29 +16,34 @@
 
     public class JiraIssueNotFoundException : JiraException
     {
-        public string JiraId { get; }
-        public JiraIssueNotFoundException(string jiraId)
-            : base($"Jira issue '{jiraId}' not found.") => JiraId = jiraId;
+        public string JiraKey { get; }
+        public JiraIssueNotFoundException(string jiraKey)
+            : base($"Jira issue '{jiraKey}' not found.") => JiraKey = jiraKey;
     }
 
     public class JiraUnauthorizedException : JiraException
     {
-        public JiraUnauthorizedException() : base("Unauthorized access to Jira API.") { }
+        public JiraUnauthorizedException()
+            : base("Unauthorized access to Jira API.") { }
     }
 
-    public class JiraForbiddenException : JiraException
+    public class JiraRemoteLinksForbiddenException : JiraException
     {
-        public JiraForbiddenException() : base("Access forbidden to Jira API.") { }
+        public string JiraKey { get; }
+
+        public JiraRemoteLinksForbiddenException(string jiraKey) : base("Issue linking is disabled for Jira issue '{jiraKey}'.") => JiraKey = jiraKey;
     }
 
     public class JiraBadRequestException : JiraException
     {
-        public JiraBadRequestException(string message) : base(message) { }
+        public string JiraKey { get; }
+        public JiraBadRequestException(string jiraKey) : base($"Invalid request to Jira API for issue '{jiraKey}'") => JiraKey = jiraKey;
     }
 
-    public class JiraPayloadTooLargeException : JiraException
+    public class JiraRemoteLinksPayloadTooLargeException : JiraException
     {
-        public JiraPayloadTooLargeException() : base("Request payload is too large.") { }
+        public string JiraKey { get; }
+        public JiraRemoteLinksPayloadTooLargeException(string jiraKey) : base("Per-issue remote link limit reached for Jira issue '{jiraKey}'.") => JiraKey = jiraKey;
     }
 
     public class JiraRemoteLinksNotFoundException : JiraException
@@ -55,34 +60,46 @@
             : base(message) => StatusCode = statusCode;
     }
 
-    public class JiraIssueParsingException : JiraException
+    public class JiraIssueMappingException : JiraException
     {
-        public JiraIssueParsingException(string jiraId, string details)
-            : base($"Failed to parse Jira issue '{jiraId}': {details}") { }
-    }
-    public class JiraTriageSubtaskNotFoundException : JiraException
-    {
-        public JiraTriageSubtaskNotFoundException(string parentKey)
-            : base($"No triage subtask found for Jira issue '{parentKey}'.") { }
+        public JiraIssueMappingException(string jiraId, string details)
+            : base($"Failed to map Jira issue '{jiraId} json': {details}") { }
     }
 
-    public class JiraTriageSubtaskProcessingException : JiraException
+    //public class JiraTriageSubtaskNotFoundException : JiraException
+    //{
+    //    public JiraTriageSubtaskNotFoundException(string parentKey)
+    //        : base($"No triage subtask found for Jira issue '{parentKey}'.") { }
+    //}
+
+    //public class JiraTriageSubtaskProcessingException : JiraException
+    //{
+    //    public JiraTriageSubtaskProcessingException(string parentKey, string details)
+    //        : base($"Failed to process triage subtasks for Jira issue '{parentKey}': {details}") { }
+    //}
+
+    public class TriageSubtaskMappingException : JiraException
     {
-        public JiraTriageSubtaskProcessingException(string parentKey, string details)
-            : base($"Failed to process triage subtasks for Jira issue '{parentKey}': {details}") { }
+        public TriageSubtaskMappingException(string key, string details)
+            : base($"Failed to map triage subtask '{key} json': {details}") { }
     }
 
-    public class TriageSubtaskCleaningException : JiraException
-    {
-        public TriageSubtaskCleaningException(string key, string details)
-            : base($"Failed to clean triage subtask '{key}': {details}") { }
-    }
+    //public class JiraCustomFieldLookupException : JiraException
+    //{
+    //    public JiraCustomFieldLookupException(string details)
+    //        : base($"Failed to look up Jira custom field: {details}") { }
+    //}
 
-    public class JiraCustomFieldLookupException : JiraException
-    {
-        public JiraCustomFieldLookupException(string details)
-            : base($"Failed to look up Jira custom field: {details}") { }
-    }
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -106,7 +123,8 @@
 
     public class ConfluenceBadRequestException : ConfluenceException
     {
-        public ConfluenceBadRequestException(string message) : base(message) { }
+        public string PageId { get; }
+        public ConfluenceBadRequestException(string pageId) : base($"Invalid request to Confluence API for page id '{pageId}'") => PageId = pageId;
     }
 
     public class ConfluenceApiException : ConfluenceException
@@ -130,6 +148,14 @@
             : base($"No attachments found for Confluence page '{pageId}'.") => PageId = pageId;
     }
 
+
+
+
+
+
+
+
+
     public class ConfluenceSearchException : ConfluenceException
     {
         public ConfluenceSearchException(string message) : base(message) { }
@@ -137,44 +163,49 @@
 
     public class ConfluenceSearchBadRequestException : ConfluenceSearchException
     {
-        public ConfluenceSearchBadRequestException(string message) : base(message) { }
+        public ConfluenceSearchBadRequestException() : base("Invalid request to Confluence API") { }
     }
 
-    public class ConfluencePageParsingException : ConfluenceException
-    {
-        public ConfluencePageParsingException(string pageId, string details)
-            : base($"Failed to parse Confluence page '{pageId}': {details}") { }
-    }
+    //public class ConfluencePageMappingException : ConfluenceException
+    //{
+    //    public ConfluencePageMappingException(string pageId, string details)
+    //        : base($"Failed to map Confluence page '{pageId} json': {details}") { }
+    //}
 
-    public class ConfluenceAttachmentsParsingException : ConfluenceException
-    {
-        public ConfluenceAttachmentsParsingException(string pageId, string details)
-            : base($"Failed to parse attachments for Confluence page '{pageId}': {details}") { }
-    }
+    //public class ConfluenceAttachmentsParsingException : ConfluenceException
+    //{
+    //    public ConfluenceAttachmentsParsingException(string pageId, string details)
+    //        : base($"Failed to parse attachments for Confluence page '{pageId}': {details}") { }
+    //}
 
     public class ConfluencePageReferenceExtractionException : ConfluenceException
     {
-        public ConfluencePageReferenceExtractionException(string jiraId, string details)
-            : base($"Failed to extract Confluence page references for Jira issue '{jiraId}': {details}") { }
+        public ConfluencePageReferenceExtractionException(string message): base(message) { }
     }
 
-    public class ConfluenceSearchParameterExtractionException : ConfluenceException
+    public class ConfluenceSearchParameterException : ConfluenceException
     {
-        public ConfluenceSearchParameterExtractionException(string jiraId, string details)
-            : base($"Failed to extract Confluence search parameters for Jira issue '{jiraId}': {details}") { }
+        public ConfluenceSearchParameterException(string message) : base(message) { }
     }
 
-    public class ConfluenceSearchFilterExtractionException : ConfluenceException
+    public class ConfluenceSearchFilterException : ConfluenceException
     {
-        public ConfluenceSearchFilterExtractionException(string jiraId, string details)
-            : base($"Failed to filter Confluence search results for Jira issue '{jiraId}': {details}") { }
+        public ConfluenceSearchFilterException(string message) : base(message) { }
     }
 
     public class ConfluencePageSummaryException : ConfluenceException
     {
+        public string PageId { get; }
         public ConfluencePageSummaryException(string pageId, string details)
-            : base($"Failed to generate summary for Confluence page '{pageId}': {details}") { }
+            : base($"Failed to generate summary for Confluence page '{pageId}': {details}") => PageId = pageId;
     }
+
+
+
+
+
+
+
 
 
 
@@ -186,14 +217,20 @@
 
     public class AttachmentDownloadException : ConfluenceException
     {
-        public AttachmentDownloadException(string url, string details)
-            : base($"Failed to download Confluence attachment '{url}': {details}") { }
+        public AttachmentDownloadException(string url)
+            : base($"Failed to download Confluence attachment '{url}'") { }
     }
 
     public class UnsupportedAttachmentMediaTypeException : ConfluenceException
     {
         public UnsupportedAttachmentMediaTypeException(string mediaType)
             : base($"Unsupported attachment media type: '{mediaType}'") { }
+    }
+
+    public class AttachmentSummaryException : ConfluenceException
+    {
+        public AttachmentSummaryException()
+            : base($"Failed to summarize Image attachment.") { }
     }
 
 
@@ -206,26 +243,26 @@
             : base($"Failed to generate test cases for Jira issue '{jiraId}': {details}") => JiraId = jiraId;
     }
 
-    public class UserMessageBuilderException : DomainException
-    {
-        private string message1;
+    //public class UserMessageBuilderException : DomainException
+    //{
+    //    private string message1;
 
-        public string JiraId { get; }
-        public UserMessageBuilderException(string jiraId, string details, Exception ex)
-            : base($"Failed to build user message for Jira issue '{jiraId}': {details}") => JiraId = jiraId;
+    //    public string JiraId { get; }
+    //    public UserMessageBuilderException(string jiraId, string details, Exception ex)
+    //        : base($"Failed to build user message for Jira issue '{jiraId}': {details}") => JiraId = jiraId;
 
-        public UserMessageBuilderException(string message, string message1) : base(message)
-        {
-            this.message1 = message1;
-        }
-    }
+    //    public UserMessageBuilderException(string message, string message1) : base(message)
+    //    {
+    //        this.message1 = message1;
+    //    }
+    //}
 
-    public class ConfluencePageSearchOrchestratorException : DomainException
-    {
-        public string JiraId { get; }
-        public ConfluencePageSearchOrchestratorException(string jiraId, string details)
-            : base($"Failed to orchestrate Confluence page search for Jira issue '{jiraId}': {details}") => JiraId = jiraId;
-    }
+    //public class ConfluencePageSearchOrchestratorException : DomainException
+    //{
+    //    public string JiraId { get; }
+    //    public ConfluencePageSearchOrchestratorException(string jiraId, string details)
+    //        : base($"Failed to orchestrate Confluence page search for Jira issue '{jiraId}': {details}") => JiraId = jiraId;
+    //}
 
 
 

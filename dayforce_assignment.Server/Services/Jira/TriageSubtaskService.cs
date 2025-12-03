@@ -7,32 +7,38 @@ namespace dayforce_assignment.Server.Services.Jira
 {
     public class TriageSubtaskService : ITriageSubtaskService
     {
-        private readonly IJiraIssueService _jiraIssueService;
+        private readonly IJiraHttpClientService _jiraHttpClientService;
         private readonly ICustomFieldService _customFieldService;
+        private readonly ILogger<TriageSubtaskService> _logger;
 
         public TriageSubtaskService(
-            IJiraIssueService jiraIssueService,
-            ICustomFieldService customFieldService)
+            IJiraHttpClientService jiraHttpClientService,
+            ICustomFieldService customFieldService,
+            ILogger<TriageSubtaskService> logger)
         {
-            _jiraIssueService = jiraIssueService;
+            _jiraHttpClientService = jiraHttpClientService;
             _customFieldService = customFieldService;
+            _logger = logger;
         }
 
-        public async Task<JsonElement> GetSubTaskAsync(JiraIssueDto jiraIssue)
+        // Searches for Triage subtask and return the json subtask issue.
+        public async Task<JsonElement> GetSubtaskAsync(JiraIssueDto jiraIssue)
         {
-            var jiraKey = jiraIssue?.Key ?? "unknown";
-
-            try
+            if (jiraIssue.Subtasks.Any())
             {
-                if (jiraIssue == null)
-                    throw new JiraTriageSubtaskProcessingException(jiraKey, "JiraIssueDto is null.");
+                JsonElement jsonSubTaskIssue = new JsonElement();
 
-                if (jiraIssue.Subtasks == null || !jiraIssue.Subtasks.Any())
-                    throw new JiraTriageSubtaskNotFoundException(jiraKey);
-
-                foreach (var subtask in jiraIssue.Subtasks)
+                foreach (SubtaskInfo subtask in jiraIssue.Subtasks)
                 {
-                    JsonElement jsonSubTaskIssue = await _jiraIssueService.GetIssueAsync(subtask.Key);
+                    try
+                    {
+                        jsonSubTaskIssue = await _jiraHttpClientService.GetIssueAsync(subtask.Key);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to fetch Jira subtask {SubtaskKey}", subtask.Key);
+                        continue;
+                    }
 
                     string subtaskTypeFieldId = _customFieldService.GetCustomFieldId(jsonSubTaskIssue, "Sub-Task Type");
 
@@ -51,17 +57,8 @@ namespace dayforce_assignment.Server.Services.Jira
                     if (subtaskValue.GetString() == "Triage")
                         return jsonSubTaskIssue;
                 }
-
-                throw new JiraTriageSubtaskNotFoundException(jiraKey);
             }
-            catch (JsonException ex)
-            {
-                throw new JiraTriageSubtaskProcessingException(jiraKey, $"Invalid JSON structure: {ex.Message}");
-            }
-            catch (Exception ex) when (!(ex is JiraException))
-            {
-                throw new JiraTriageSubtaskProcessingException(jiraKey, $"An unexpected error has occured");
-            }
+            return new JsonElement();
         }
     }
 }

@@ -3,7 +3,10 @@ using dayforce_assignment.Server.DTOs.Jira;
 using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Common;
 using dayforce_assignment.Server.Interfaces.Confluence;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using System.Reflection.Metadata.Ecma335;
 using System.Text.Json;
 
 namespace dayforce_assignment.Server.Services.Confluence
@@ -12,30 +15,49 @@ namespace dayforce_assignment.Server.Services.Confluence
     {
         private readonly IChatCompletionService _chatCompletionService;
         private readonly IJsonFormatterService _jsonFormatterService;
+        private readonly ILogger<ConfluencePageReferenceExtractor> _logger;
 
         public ConfluencePageReferenceExtractor(
             IChatCompletionService chatCompletionService,
-            IJsonFormatterService jsonFormatterService)
+            IJsonFormatterService jsonFormatterService,
+            ILogger<ConfluencePageReferenceExtractor> logger)
         {
             _chatCompletionService = chatCompletionService;
             _jsonFormatterService = jsonFormatterService;
+            _logger = logger;
         }
 
-        public async Task<ConfluencePageReferencesDto> GetReferencesAsync(JiraIssueDto jiraStory)
+        public async Task<ConfluencePageReferencesDto> GetReferencesAsync(JiraIssueDto jiraIssue)
         {
-            var jiraId = jiraStory?.Key ?? "unknown";
+            var dto = new ConfluencePageReferencesDto();
+            var history = new ChatHistory();
+
+            // Load system prompt
+            string systemPromptPath = "SystemPrompts/ConfluencePageReferenceExtractor.txt";
+
+            if (!File.Exists(systemPromptPath))
+                throw new FileNotFoundException($"System prompt file not found: {systemPromptPath}");
+
+            string systemPrompt = await File.ReadAllTextAsync(systemPromptPath);
+
+            history.AddSystemMessage(systemPrompt);
+
+            history.AddUserMessage(JsonSerializer.Serialize(jiraIssue));
+
+
+            var response = new ChatMessageContent();
 
             try
             {
-                var history = new ChatHistory();
+                response = await _chatCompletionService.GetChatMessageContentAsync(history);
+            }
+            catch (Exception)
+            {
+                throw new ConfluencePageReferenceExtractionException($"Failed to extract confluence page references from Jira issue {jiraIssue.Key}");
+            }
 
-                string systemPrompt = File.ReadAllText("SystemPrompts/ConfluencePageReferenceExtractor.txt");
-                history.AddSystemMessage(systemPrompt);
-
-                history.AddUserMessage(JsonSerializer.Serialize(jiraStory));
-
-                var response = await _chatCompletionService.GetChatMessageContentAsync(history);
-
+            try
+            {
                 var jsonResponse = _jsonFormatterService.FormatJson(response.ToString());
 
                 var options = new JsonSerializerOptions
@@ -43,21 +65,15 @@ namespace dayforce_assignment.Server.Services.Confluence
                     PropertyNameCaseInsensitive = true
                 };
 
-                var dto = JsonSerializer.Deserialize<ConfluencePageReferencesDto>(jsonResponse, options);
+                dto = JsonSerializer.Deserialize<ConfluencePageReferencesDto>(jsonResponse, options);
 
-                if (dto == null)
-                    throw new ConfluencePageReferenceExtractionException(jiraId, "Deserialized object is null.");
-
-                return dto;
+                return dto ?? new ConfluencePageReferencesDto();
             }
             catch (JsonException ex)
             {
-                throw new ConfluencePageReferenceExtractionException(jiraId, $"JSON parsing error: {ex.Message}");
+                throw new ConfluencePageReferenceExtractionException($"Failed to parse Json response from AI for confluence page references for Jira issue {jiraIssue.Key}");
             }
-            catch (Exception ex) when (!(ex is DomainException))
-            {
-                throw new ConfluencePageReferenceExtractionException(jiraId, $"Unexpected error: {ex.Message}");
-            }
+
         }
     }
 }

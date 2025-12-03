@@ -56,22 +56,23 @@ namespace dayforce_assignment.Server.Exceptions
                 // Common Services Exceptions
                 UnsupportedAttachmentMediaTypeException => StatusCodes.Status415UnsupportedMediaType,
                 AttachmentDownloadException => StatusCodes.Status502BadGateway,
+                AttachmentSummaryException => StatusCodes.Status500InternalServerError,
                 JsonFormattingException => StatusCodes.Status500InternalServerError,
 
 
                 // Jira Exceptions
                 JiraIssueNotFoundException => StatusCodes.Status404NotFound,
                 JiraUnauthorizedException => StatusCodes.Status401Unauthorized,
-                JiraForbiddenException => StatusCodes.Status403Forbidden,
+                JiraRemoteLinksForbiddenException => StatusCodes.Status403Forbidden,
                 JiraBadRequestException => StatusCodes.Status400BadRequest,
-                JiraPayloadTooLargeException => StatusCodes.Status413PayloadTooLarge,
+                JiraRemoteLinksPayloadTooLargeException => StatusCodes.Status413PayloadTooLarge,
                 JiraRemoteLinksNotFoundException => StatusCodes.Status404NotFound,
-                JiraIssueParsingException => StatusCodes.Status500InternalServerError,
+                JiraIssueMappingException => StatusCodes.Status500InternalServerError,
                 JiraApiException => StatusCodes.Status502BadGateway,
-                JiraTriageSubtaskNotFoundException => StatusCodes.Status404NotFound,
-                JiraTriageSubtaskProcessingException => StatusCodes.Status500InternalServerError,
-                TriageSubtaskCleaningException => StatusCodes.Status500InternalServerError,
-                JiraCustomFieldLookupException => StatusCodes.Status500InternalServerError,
+                //JiraTriageSubtaskNotFoundException => StatusCodes.Status404NotFound,
+                //JiraTriageSubtaskProcessingException => StatusCodes.Status500InternalServerError,
+                TriageSubtaskMappingException => StatusCodes.Status500InternalServerError,
+                //JiraCustomFieldLookupException => StatusCodes.Status500InternalServerError,
                 JiraException => StatusCodes.Status503ServiceUnavailable,
 
 
@@ -83,19 +84,19 @@ namespace dayforce_assignment.Server.Exceptions
                 ConfluenceCommentsNotFoundException => StatusCodes.Status404NotFound,
                 ConfluenceAttachmentsNotFoundException => StatusCodes.Status404NotFound,
                 ConfluenceSearchBadRequestException => StatusCodes.Status400BadRequest,
-                ConfluencePageParsingException => StatusCodes.Status500InternalServerError,
-                ConfluenceAttachmentsParsingException => StatusCodes.Status500InternalServerError,
+                //ConfluencePageParsingException => StatusCodes.Status500InternalServerError,
+                //ConfluenceAttachmentsParsingException => StatusCodes.Status500InternalServerError,
                 ConfluencePageReferenceExtractionException => StatusCodes.Status500InternalServerError,
-                ConfluenceSearchParameterExtractionException => StatusCodes.Status500InternalServerError,
-                ConfluenceSearchFilterExtractionException => StatusCodes.Status500InternalServerError,
+                ConfluenceSearchParameterException => StatusCodes.Status500InternalServerError,
+                ConfluenceSearchFilterException => StatusCodes.Status500InternalServerError,
                 ConfluencePageSummaryException => StatusCodes.Status500InternalServerError,
                 ConfluenceException => StatusCodes.Status503ServiceUnavailable,
 
 
                 // Orchestrator Services Exceptions
                 TestCaseGenerationException => StatusCodes.Status500InternalServerError,
-                UserMessageBuilderException => StatusCodes.Status500InternalServerError,
-                ConfluencePageSearchOrchestratorException => StatusCodes.Status500InternalServerError,
+                //UserMessageBuilderException => StatusCodes.Status500InternalServerError,
+                //ConfluencePageSearchOrchestratorException => StatusCodes.Status500InternalServerError,
 
 
                 // Atlassian Exceptions
