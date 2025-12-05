@@ -1,12 +1,11 @@
-﻿using dayforce_assignment.Server.Exceptions;
-using dayforce_assignment.Server.Interfaces.Jira;
+﻿using dayforce_assignment.Server.Interfaces.Jira;
 using System.Text.Json;
 
 namespace dayforce_assignment.Server.Services.Jira
 {
     public class CustomFieldService : ICustomFieldService
     {
-        // Get custom field id mapping for fieldName. Returns empty string if not found. 
+        // Gets custom field id mapping for fieldName. Returns empty string if not found. 
         public string GetCustomFieldId(JsonElement jsonIssue, string fieldName)
         {
             if (!jsonIssue.TryGetProperty("names", out var names) ||

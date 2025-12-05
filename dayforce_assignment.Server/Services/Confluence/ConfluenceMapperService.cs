@@ -26,7 +26,8 @@ namespace dayforce_assignment.Server.Services.Confluence
             var commentsList = new List<string>();
             if (confluenceComments.ValueKind != JsonValueKind.Undefined &&
                 confluenceComments.ValueKind != JsonValueKind.Null &&
-                confluenceComments.TryGetProperty("results", out var commentsResults))
+                confluenceComments.TryGetProperty("results", out var commentsResults) &&
+                commentsResults.ValueKind == JsonValueKind.Array)
             {
                 foreach (var comment in commentsResults.EnumerateArray())
                 {
@@ -97,51 +98,52 @@ namespace dayforce_assignment.Server.Services.Confluence
         public ConfluencePageAttachmentsDto MapAttachmentsToDto(JsonElement payload)
         {
 
-                var dto = new ConfluencePageAttachmentsDto();
+            var dto = new ConfluencePageAttachmentsDto();
 
-                if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
-                    return dto;
+            if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+                return dto;
 
-                // Get base URL
-                string baseUrl = GetStringProperty(payload, "_links", "base") ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(baseUrl))
-                    return dto;
-                // Get attachments array
-                if (!payload.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)
-                    return dto;
+            // Get base URL
+            string baseUrl = GetStringProperty(payload, "_links", "base") ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(baseUrl))
+                return dto;
+            // Get attachments array
+            if (!payload.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)
+                return dto;
 
-                foreach (var item in results.EnumerateArray())
+            foreach (var item in results.EnumerateArray())
+            {
+                string mediaType = GetStringProperty(item, "mediaType") ?? string.Empty;
+                string downloadLink = GetStringProperty(item, "_links", "download") ?? string.Empty;
+                string title = GetStringProperty(item, "title") ?? string.Empty;
+
+
+            if (!string.IsNullOrWhiteSpace(mediaType) && !string.IsNullOrWhiteSpace(downloadLink) && !string.IsNullOrWhiteSpace(title)) 
                 {
-                    string mediaType = GetStringProperty(item, "mediaType") ?? string.Empty;
-
-                    if (string.IsNullOrWhiteSpace(mediaType) ||
-                        !(mediaType.StartsWith("image/") || mediaType.StartsWith("text/")))
-                        continue; // ignore unsupported attachment types
-
-                    string downloadLink = GetStringProperty(item, "_links", "download") ?? string.Empty;
-
-                    if (string.IsNullOrWhiteSpace(downloadLink))
-                        continue;
-                    Console.WriteLine(baseUrl);
-
                     var fullUrl = $"{baseUrl.TrimEnd('/')}/{downloadLink.TrimStart('/')}";
-                    Console.WriteLine(fullUrl);
-
 
                     dto.Attachments.Add(new Attachment
                     {
                         DownloadLink = fullUrl,
-                        MediaType = mediaType
+                        MediaType = mediaType,
+                        FileName = title
                     });
+
                 }
 
-                return dto;
+
+            }
+
+            return dto;
         }
 
-        private static string? GetStringProperty(JsonElement element, string propertyName)
+        private static string GetStringProperty(JsonElement element, string propertyName)
         {
-            return element.TryGetProperty(propertyName, out var prop) ? prop.GetString() : string.Empty;
+            if (element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String)
+                return prop.GetString() ?? string.Empty;
+            return string.Empty;
         }
+
 
         private static string? GetStringProperty(JsonElement element, string parentProperty, string childProperty)
         {

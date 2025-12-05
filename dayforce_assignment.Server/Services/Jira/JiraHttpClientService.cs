@@ -16,7 +16,7 @@ namespace dayforce_assignment.Server.Services.Jira
         }
 
 
-        // Get Jira Issue json 
+        // Gets Jira Issue json, throws exception if not found. 
         public async Task<JsonElement> GetIssueAsync(string jiraKey)
         {
             var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
@@ -44,7 +44,7 @@ namespace dayforce_assignment.Server.Services.Jira
         }
 
 
-        // Get Jira Issue Remote Links json
+        // Gets Jira Issue Remote Links json, throws exception if not found.
         public async Task<JsonElement> GetIssueRemoteLinksAsync(string jiraKey)
         {
             var client = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");

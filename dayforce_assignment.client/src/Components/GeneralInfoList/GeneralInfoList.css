@@ -1,0 +1,45 @@
+.generalInfoContainer {
+    width: 45%;
+    min-width: 200px;
+    margin: 1rem 0;
+}
+
+.title {
+    display: inline-block;
+    text-align: start;
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: rgb(50, 50, 50);
+    margin-bottom: 0.25rem;
+    text-decoration: none;
+}
+
+    .title:hover {
+        text-decoration: underline;
+    }
+
+.subtitle {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: rgb(85, 85, 85);
+    margin-bottom: 0.5rem;
+}
+
+.list {
+    list-style-type: disc;
+    padding-left: 1.25rem;
+    margin: 0;
+}
+
+
+.link {
+    color: rgb(50, 50, 50);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+    .link:hover {
+        text-decoration: underline;
+    }

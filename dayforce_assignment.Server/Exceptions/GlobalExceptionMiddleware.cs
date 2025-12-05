@@ -23,7 +23,7 @@ namespace dayforce_assignment.Server.Exceptions
             }
             catch (DomainException ex)
             {
-                _logger.LogWarning(ex, "Domain exception occurred.");
+                _logger.LogError(ex, "Domain exception occurred.");
                 await HandleDomainExceptionAsync(context, ex);
             }
             catch (HttpRequestException ex)
@@ -68,11 +68,8 @@ namespace dayforce_assignment.Server.Exceptions
                 JiraRemoteLinksPayloadTooLargeException => StatusCodes.Status413PayloadTooLarge,
                 JiraRemoteLinksNotFoundException => StatusCodes.Status404NotFound,
                 JiraIssueMappingException => StatusCodes.Status500InternalServerError,
-                JiraApiException => StatusCodes.Status502BadGateway,
-                //JiraTriageSubtaskNotFoundException => StatusCodes.Status404NotFound,
-                //JiraTriageSubtaskProcessingException => StatusCodes.Status500InternalServerError,
+                JiraApiException => StatusCodes.Status502BadGateway,    
                 TriageSubtaskMappingException => StatusCodes.Status500InternalServerError,
-                //JiraCustomFieldLookupException => StatusCodes.Status500InternalServerError,
                 JiraException => StatusCodes.Status503ServiceUnavailable,
 
 
@@ -81,27 +78,20 @@ namespace dayforce_assignment.Server.Exceptions
                 ConfluenceUnauthorizedException => StatusCodes.Status401Unauthorized,
                 ConfluenceBadRequestException => StatusCodes.Status400BadRequest,
                 ConfluenceApiException => StatusCodes.Status502BadGateway,
-                ConfluenceCommentsNotFoundException => StatusCodes.Status404NotFound,
+                ConfluenceCommentsNotFoundException => StatusCodes.Status404NotFound,   
                 ConfluenceAttachmentsNotFoundException => StatusCodes.Status404NotFound,
                 ConfluenceSearchBadRequestException => StatusCodes.Status400BadRequest,
-                //ConfluencePageParsingException => StatusCodes.Status500InternalServerError,
-                //ConfluenceAttachmentsParsingException => StatusCodes.Status500InternalServerError,
                 ConfluencePageReferenceExtractionException => StatusCodes.Status500InternalServerError,
                 ConfluenceSearchParameterException => StatusCodes.Status500InternalServerError,
                 ConfluenceSearchFilterException => StatusCodes.Status500InternalServerError,
                 ConfluencePageSummaryException => StatusCodes.Status500InternalServerError,
                 ConfluenceException => StatusCodes.Status503ServiceUnavailable,
 
-
                 // Orchestrator Services Exceptions
                 TestCaseGenerationException => StatusCodes.Status500InternalServerError,
-                //UserMessageBuilderException => StatusCodes.Status500InternalServerError,
-                //ConfluencePageSearchOrchestratorException => StatusCodes.Status500InternalServerError,
-
 
                 // Atlassian Exceptions
-                AtlassianConfigurationException => StatusCodes.Status503ServiceUnavailable,
-                
+                AtlassianConfigurationException => StatusCodes.Status500InternalServerError,
 
                 _ => StatusCodes.Status500InternalServerError
             };

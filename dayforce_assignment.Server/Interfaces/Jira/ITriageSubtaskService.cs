@@ -5,6 +5,6 @@ namespace dayforce_assignment.Server.Interfaces.Jira
 {
     public interface ITriageSubtaskService
     {
-        Task<JsonElement> GetSubTaskAsync(JiraIssueDto jiraIssue);
+        Task<JsonElement> GetSubtaskAsync(JiraIssueDto jiraIssue);
     }
 }

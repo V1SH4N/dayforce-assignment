@@ -1,8 +1,8 @@
-﻿using dayforce_assignment.Server.Exceptions;
+﻿using dayforce_assignment.Server.DTOs.Common;
+using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Common;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
-using System.Reflection.Metadata.Ecma335;
 using System.Text;
 
 namespace dayforce_assignment.Server.Services.Common
@@ -21,9 +21,9 @@ namespace dayforce_assignment.Server.Services.Common
             _logger = logger;
         }
 
-        public async Task<KernelContent> DownloadAttachmentAsync(string downloadLink, string mediaType)
+        // Download attachments. Throws exception if attachment fails. Trim attachment if it is csv file.
+        public async Task<KernelContent> DownloadAttachmentAsync(string downloadLink, string mediaType, string fileName)
         {
-            
             var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
 
             byte[] responseBytes;
@@ -56,7 +56,12 @@ namespace dayforce_assignment.Server.Services.Common
 
             if (mediaType.StartsWith("text/"))
             {
+                if (fileName.EndsWith(".csv")){
+                    return await GetCsvFirstNLinesAsync(responseBytes, 15);
+                }
+
                 return new TextContent(Encoding.UTF8.GetString(responseBytes));
+
             }
 
             throw new UnsupportedAttachmentMediaTypeException(mediaType);
@@ -64,8 +69,8 @@ namespace dayforce_assignment.Server.Services.Common
         }
 
 
-
-        public async Task<List<KernelContent>> DownloadAttachmentListAsync(IEnumerable<DTOs.Common.Attachment> attachments)
+        // Download attachment list. ( takes List<Attachment>, returns List<kernelContent> ). Skips attachment if download throws exception.
+        public async Task<List<KernelContent>> DownloadAttachmentListAsync(IEnumerable<Attachment> attachments)
         {
             if (attachments == null || !attachments.Any())
                 return new List<KernelContent>();
@@ -74,7 +79,7 @@ namespace dayforce_assignment.Server.Services.Common
             {
                 try
                 {
-                    return await DownloadAttachmentAsync(att.DownloadLink, att.MediaType);
+                    return await DownloadAttachmentAsync(att.DownloadLink, att.MediaType, att.FileName);
                 }
                 catch
                 {
@@ -89,13 +94,8 @@ namespace dayforce_assignment.Server.Services.Common
         }
 
 
-
-
-
-
-
-
-        public async Task<List<string>> SummarizeAttachmentListAsync(IEnumerable<DTOs.Common.Attachment> attachments)
+        // Download & summarize attachment list. ( takes List<Attachment>, returns List<string> ) .Skips attachment if download/summarization throws exception.
+        public async Task<List<string>> SummarizeAttachmentListAsync(IEnumerable<Attachment> attachments)
         {
             
             var result = new List<string>();
@@ -108,7 +108,7 @@ namespace dayforce_assignment.Server.Services.Common
             {
                 try
                 {
-                    KernelContent downloadedAttachment = await DownloadAttachmentAsync(att.DownloadLink, att.MediaType);
+                    KernelContent downloadedAttachment = await DownloadAttachmentAsync(att.DownloadLink, att.MediaType, att.FileName);
 
                     try
                     {
@@ -147,7 +147,7 @@ namespace dayforce_assignment.Server.Services.Common
         }
 
 
-
+        // Summarizes image attachments. Throws exception if summary fails.
         public async Task<string> SummarizeImageAttachmentAsync(ImageContent attachment)
         {
             var history = new ChatHistory();
@@ -179,8 +179,25 @@ namespace dayforce_assignment.Server.Services.Common
         }
 
 
+        // Trims csv file
+        private Task<TextContent> GetCsvFirstNLinesAsync(byte[] csvBytes, int maxLines)
+        {
+            using var memoryStream = new MemoryStream(csvBytes);
+            using var reader = new StreamReader(memoryStream, Encoding.UTF8);
 
+            var lines = new List<string>();
+            string? line;
+            int count = 0;
 
+            while (count < maxLines && (line = reader.ReadLine()) != null)
+            {
+                lines.Add(line);
+                count++;
+            }
+
+            var contentString = string.Join(Environment.NewLine, lines);
+            return Task.FromResult(new TextContent(contentString));
+        }
 
     }
 }

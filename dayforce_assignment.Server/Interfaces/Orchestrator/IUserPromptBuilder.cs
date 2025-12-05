@@ -5,6 +5,6 @@ namespace dayforce_assignment.Server.Interfaces.Orchestrator
 {
     public interface IUserPromptBuilder
     {
-        Task<ChatMessageContentItemCollection> BuildAsync(JiraIssueDto jiraIssue, bool IsBugIssue);
+        Task<ChatMessageContentItemCollection> BuildAsync(JiraIssueDto jiraIssue, bool IsBugIssue, bool summarizeAttachment);
     }
 }

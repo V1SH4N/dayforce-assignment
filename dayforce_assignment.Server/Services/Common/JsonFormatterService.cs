@@ -6,6 +6,7 @@ namespace dayforce_assignment.Server.Services.Common
 {
     public class JsonFormatterService : IJsonFormatterService
     {
+        // Formats jsonResponse from Ai to valid json.s
         public JsonElement FormatJson(string responseString)
         {
             if (string.IsNullOrWhiteSpace(responseString))

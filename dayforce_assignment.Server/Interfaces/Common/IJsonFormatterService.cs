@@ -1,6 +1,4 @@
-﻿using dayforce_assignment.Server.DTOs.Confluence;
-using Microsoft.SemanticKernel;
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace dayforce_assignment.Server.Interfaces.Common
 {

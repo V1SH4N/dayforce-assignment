@@ -26,7 +26,8 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "https://api.nuget.org/v3/index.json": {}
+          "https://api.nuget.org/v3/index.json": {},
+          "https://pkgs.dev.azure.com/Ceridian/_packaging/dayforce@release/nuget/v3/index.json": {}
         },
         "frameworks": {
           "net8.0": {
@@ -50,6 +51,18 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "Aida.Client": {
+              "target": "Package",
+              "version": "[1.0.163, )"
+            },
+            "DotNetEnv": {
+              "target": "Package",
+              "version": "[3.1.1, )"
+            },
+            "HtmlAgilityPack": {
+              "target": "Package",
+              "version": "[1.12.4, )"
+            },
             "Microsoft.AspNetCore.SpaProxy": {
               "target": "Package",
               "version": "[8.*-*, )"

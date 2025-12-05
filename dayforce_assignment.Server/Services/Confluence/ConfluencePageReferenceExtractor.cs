@@ -3,10 +3,8 @@ using dayforce_assignment.Server.DTOs.Jira;
 using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Common;
 using dayforce_assignment.Server.Interfaces.Confluence;
-using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
-using System.Reflection.Metadata.Ecma335;
 using System.Text.Json;
 
 namespace dayforce_assignment.Server.Services.Confluence
@@ -15,18 +13,16 @@ namespace dayforce_assignment.Server.Services.Confluence
     {
         private readonly IChatCompletionService _chatCompletionService;
         private readonly IJsonFormatterService _jsonFormatterService;
-        private readonly ILogger<ConfluencePageReferenceExtractor> _logger;
 
         public ConfluencePageReferenceExtractor(
             IChatCompletionService chatCompletionService,
-            IJsonFormatterService jsonFormatterService,
-            ILogger<ConfluencePageReferenceExtractor> logger)
+            IJsonFormatterService jsonFormatterService)
         {
             _chatCompletionService = chatCompletionService;
             _jsonFormatterService = jsonFormatterService;
-            _logger = logger;
         }
 
+        // Extracts confluence page link references from Jira issue information. Returns new ConfluencePageReferencesDto initialized with empty list if not found.
         public async Task<ConfluencePageReferencesDto> GetReferencesAsync(JiraIssueDto jiraIssue)
         {
             var dto = new ConfluencePageReferencesDto();

@@ -14,7 +14,7 @@ namespace dayforce_assignment.Server.Services.Confluence
         }
 
 
-        // Get json confluence page
+        // Gets confluence page json. Throws exception if not found.
         public async Task<JsonElement> GetPageAsync(string baseUrl, string id)
         {
             var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
@@ -45,7 +45,7 @@ namespace dayforce_assignment.Server.Services.Confluence
         }
 
 
-        // Get json confluence page attachments (includes download link & media type)
+        // Get confluence page attachments json (includes download link, media type & filename). Throws exception if not found.
         public async Task<JsonElement> GetAttachmentsAsync(string baseUrl, string id)
         {
             var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
@@ -74,7 +74,7 @@ namespace dayforce_assignment.Server.Services.Confluence
         }
 
 
-        // Get json confluence page comments
+        // Get json confluence page comments json. Throws exception if not found.
         public async Task<JsonElement> GetCommentsAsync(string baseUrl, string id)
         {
             var client = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");

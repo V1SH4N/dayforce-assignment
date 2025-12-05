@@ -4,6 +4,6 @@ namespace dayforce_assignment.Server.Interfaces.Jira
 {
     public interface ICustomFieldService
     {
-        string GetCustomFieldId(JsonElement jiraJson, string fieldName);
+        string GetCustomFieldId(JsonElement jsonIssue, string fieldName);
     }
 }

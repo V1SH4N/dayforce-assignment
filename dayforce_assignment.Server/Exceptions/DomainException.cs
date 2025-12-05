@@ -66,40 +66,11 @@
             : base($"Failed to map Jira issue '{jiraId} json': {details}") { }
     }
 
-    //public class JiraTriageSubtaskNotFoundException : JiraException
-    //{
-    //    public JiraTriageSubtaskNotFoundException(string parentKey)
-    //        : base($"No triage subtask found for Jira issue '{parentKey}'.") { }
-    //}
-
-    //public class JiraTriageSubtaskProcessingException : JiraException
-    //{
-    //    public JiraTriageSubtaskProcessingException(string parentKey, string details)
-    //        : base($"Failed to process triage subtasks for Jira issue '{parentKey}': {details}") { }
-    //}
-
     public class TriageSubtaskMappingException : JiraException
     {
         public TriageSubtaskMappingException(string key, string details)
             : base($"Failed to map triage subtask '{key} json': {details}") { }
     }
-
-    //public class JiraCustomFieldLookupException : JiraException
-    //{
-    //    public JiraCustomFieldLookupException(string details)
-    //        : base($"Failed to look up Jira custom field: {details}") { }
-    //}
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -148,35 +119,10 @@
             : base($"No attachments found for Confluence page '{pageId}'.") => PageId = pageId;
     }
 
-
-
-
-
-
-
-
-
-    public class ConfluenceSearchException : ConfluenceException
-    {
-        public ConfluenceSearchException(string message) : base(message) { }
-    }
-
-    public class ConfluenceSearchBadRequestException : ConfluenceSearchException
+    public class ConfluenceSearchBadRequestException : ConfluenceException
     {
         public ConfluenceSearchBadRequestException() : base("Invalid request to Confluence API") { }
     }
-
-    //public class ConfluencePageMappingException : ConfluenceException
-    //{
-    //    public ConfluencePageMappingException(string pageId, string details)
-    //        : base($"Failed to map Confluence page '{pageId} json': {details}") { }
-    //}
-
-    //public class ConfluenceAttachmentsParsingException : ConfluenceException
-    //{
-    //    public ConfluenceAttachmentsParsingException(string pageId, string details)
-    //        : base($"Failed to parse attachments for Confluence page '{pageId}': {details}") { }
-    //}
 
     public class ConfluencePageReferenceExtractionException : ConfluenceException
     {
@@ -199,13 +145,6 @@
         public ConfluencePageSummaryException(string pageId, string details)
             : base($"Failed to generate summary for Confluence page '{pageId}': {details}") => PageId = pageId;
     }
-
-
-
-
-
-
-
 
 
 
@@ -242,27 +181,6 @@
         public TestCaseGenerationException(string jiraId, string details)
             : base($"Failed to generate test cases for Jira issue '{jiraId}': {details}") => JiraId = jiraId;
     }
-
-    //public class UserMessageBuilderException : DomainException
-    //{
-    //    private string message1;
-
-    //    public string JiraId { get; }
-    //    public UserMessageBuilderException(string jiraId, string details, Exception ex)
-    //        : base($"Failed to build user message for Jira issue '{jiraId}': {details}") => JiraId = jiraId;
-
-    //    public UserMessageBuilderException(string message, string message1) : base(message)
-    //    {
-    //        this.message1 = message1;
-    //    }
-    //}
-
-    //public class ConfluencePageSearchOrchestratorException : DomainException
-    //{
-    //    public string JiraId { get; }
-    //    public ConfluencePageSearchOrchestratorException(string jiraId, string details)
-    //        : base($"Failed to orchestrate Confluence page search for Jira issue '{jiraId}': {details}") => JiraId = jiraId;
-    //}
 
 
 

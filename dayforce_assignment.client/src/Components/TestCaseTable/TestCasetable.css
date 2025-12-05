@@ -1,0 +1,73 @@
+.testCaseContainer {
+    margin: 1.5rem 0;
+    display: flex;
+    flex-direction:column;
+    gap: .75rem;
+}
+
+.testCaseTitleContainer{
+    display:flex;
+    justify-content:center;
+}
+
+.testCaseTitle {
+    font-size: 1.6rem;
+    font-weight: 600;
+    margin: 0;
+    text-align: center;
+}
+
+h2{
+    margin: 0;
+}
+
+.downloadButtonWrapper {
+    display: flex;
+    justify-content: flex-end;
+}
+
+table {
+    width: 100%;
+    border-collapse: separate; 
+    border-spacing: 0; 
+    background-color: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    font-size: 0.9rem;
+}
+
+table th, table td {
+    border: 1px solid black;
+    padding: 0.75rem 1rem;
+    vertical-align: central;
+}
+
+table th {
+    border: 1px solid black;
+    background-color: rgb(225, 225, 225);
+    font-weight: 700;
+    font-size: 1rem;
+    text-align: left;
+}
+
+table tr:nth-child(even) {
+    background-color: white;
+}
+
+table tr:hover {
+    background-color: rgb(240, 240, 240);
+}
+
+table td {
+    line-height: 1.5;
+    font-size:.75rem;
+    white-space: pre-line;
+}
+
+table thead th {
+    position: sticky;
+    top: 0;
+    background-color: rgb(225, 225, 225);
+    z-index: 2;
+    border-bottom: 1px solid black;
+}
+

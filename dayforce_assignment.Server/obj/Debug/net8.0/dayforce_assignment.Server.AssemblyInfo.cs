@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("dayforce_assignment.Server")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+76dee83c3804cd8201234e91321771e4be031ceb")]
 [assembly: System.Reflection.AssemblyProductAttribute("dayforce_assignment.Server")]
 [assembly: System.Reflection.AssemblyTitleAttribute("dayforce_assignment.Server")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

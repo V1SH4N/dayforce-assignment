@@ -2,7 +2,6 @@
 using dayforce_assignment.Server.DTOs.Jira;
 using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Jira;
-using System.Net;
 using System.Text;
 using System.Text.Json;
 
@@ -55,15 +54,6 @@ namespace dayforce_assignment.Server.Services.Jira
             }
 
 
-            // Parent Issue
-            if (fieldsProp.TryGetProperty("parent", out var parentProp))
-            {
-                string parentKey = parentProp.TryGetProperty("key", out var parentKeyProp) ? parentKeyProp.GetString() ?? string.Empty : string.Empty;
-                if (!string.IsNullOrWhiteSpace(parentKey))
-                    dto.ParentKey = parentKey;
-            }
-
-
             // Project info
             if (fieldsProp.TryGetProperty("project", out var projectProp))
             {
@@ -82,22 +72,46 @@ namespace dayforce_assignment.Server.Services.Jira
 
 
             // Subtasks
-            if (fieldsProp.TryGetProperty("subtasks", out var subtasks) && subtasks.ValueKind == JsonValueKind.Array)
+            if (fieldsProp.TryGetProperty("subtasks", out var subtasksProp) && subtasksProp.ValueKind == JsonValueKind.Array)
             {
-                dto.Subtasks = new List<SubtaskInfo>();
-
-                foreach (var st in subtasks.EnumerateArray())
+                foreach (JsonElement st in subtasksProp.EnumerateArray())
                 {
-                    var subtaskKey = st.TryGetProperty("key", out var subtaskKeyProp) ? subtaskKeyProp.GetString() ?? string.Empty : string.Empty;
-                    var summaryText = st.TryGetProperty("fields", out var f) && f.TryGetProperty("summary", out var summaryProp) ? summaryProp.GetString() ?? string.Empty : string.Empty;
-                    //dto.Subtasks.Add(new SubtaskInfo { Key = subKey, Summary = summaryText });
+                    string subtaskKey = st.TryGetProperty("key", out var subtaskKeyProp) ? subtaskKeyProp.GetString() ?? string.Empty : string.Empty;
+                    string summary = st.TryGetProperty("fields", out var f) && f.TryGetProperty("summary", out var summaryProp) ? summaryProp.GetString() ?? string.Empty : string.Empty;
                     if (!string.IsNullOrWhiteSpace(subtaskKey))
                     {
-                        dto.Subtasks.Add(new SubtaskInfo
+                        dto.Subtasks.Add(new IssueInfo
                         {
                             Key = subtaskKey,
-                            Summary = summaryText
+                            Title = summary
                         });
+                    }
+                }
+            }
+
+
+            // Outward Issue Links
+            if (fieldsProp.TryGetProperty("issuelinks", out JsonElement issueLinksProp))
+            {
+                foreach (JsonElement issueLink in issueLinksProp.EnumerateArray())
+                {
+                    // Check if outwardIssue exists
+                    if (issueLink.TryGetProperty("outwardIssue", out JsonElement outwardIssueProp) &&
+                        outwardIssueProp.TryGetProperty("key", out var outwardIssuekeyProp)&&
+                        outwardIssueProp.TryGetProperty("fields", out var outwardIssueFieldsProp) &&
+                        outwardIssueFieldsProp.TryGetProperty("summary", out var outwardIssueSummaryProp))
+                    {
+                        string outwardIssueKey = outwardIssuekeyProp.GetString() ?? string.Empty;
+                        string outwardIssueTitle = outwardIssueSummaryProp.GetString() ?? string.Empty;
+                        
+                        if (!string.IsNullOrEmpty(outwardIssueKey))
+                        {
+                            dto.OutwardIssueLinks.Add(new IssueInfo
+                            {
+                                Key = outwardIssueKey,
+                                Title = outwardIssueTitle
+                            });
+                        }
                     }
                 }
             }
@@ -118,7 +132,6 @@ namespace dayforce_assignment.Server.Services.Jira
                     string acceptanceCriteria = sbAcceptanceCriteria.ToString();
                     if(!string.IsNullOrEmpty(acceptanceCriteria))
                         dto.AcceptanceCriteria = acceptanceCriteria;
-
                 }
             }
                 
@@ -146,6 +159,7 @@ namespace dayforce_assignment.Server.Services.Jira
             if (string.IsNullOrWhiteSpace(dto.AcceptanceCriteria) && string.IsNullOrWhiteSpace(dto.Description))
                 throw new JiraIssueMappingException(jiraKey, "Missing description or acceptance criteria.");
 
+
             // Attachments
             if (fieldsProp.TryGetProperty("attachment", out var attachments) &&
                 attachments.ValueKind == JsonValueKind.Array)
@@ -155,13 +169,15 @@ namespace dayforce_assignment.Server.Services.Jira
                 {
                     string content = attachment.TryGetProperty("content", out var c) ? c.GetString() ?? string.Empty : string.Empty;
                     string mimeType = attachment.TryGetProperty("mimeType", out var t) ? t.GetString() ?? string.Empty : string.Empty;
+                    string fileName = attachment.TryGetProperty("filename", out var fn) ? fn.GetString() ?? string.Empty : string.Empty;
 
                     if (!string.IsNullOrWhiteSpace(content) && !string.IsNullOrEmpty(mimeType))
                     {
                         dto.Attachments.Add(new Attachment
                         {
                             DownloadLink = content,
-                            MediaType = mimeType
+                            MediaType = mimeType,
+                            FileName = fileName
                         });
                     }
                 }
@@ -227,14 +243,16 @@ namespace dayforce_assignment.Server.Services.Jira
                 foreach (var attachment in attachments.EnumerateArray())
                 {
                     string content = attachment.TryGetProperty("content", out var c) ? c.GetString() ?? string.Empty : string.Empty;
-                    string mimeType = attachment.TryGetProperty("mimeType", out var t) ? t.GetString() ?? string.Empty : string.Empty;
+                    string mimeType = attachment.TryGetProperty("mimeType", out var mt) ? mt.GetString() ?? string.Empty : string.Empty;
+                    string fileName = attachment.TryGetProperty("filename", out var fn) ? fn.GetString() ?? string.Empty : string.Empty;
 
-                    if (!string.IsNullOrWhiteSpace(content) && !string.IsNullOrEmpty(mimeType))
+                    if (!string.IsNullOrWhiteSpace(content) && !string.IsNullOrEmpty(mimeType) && !string.IsNullOrEmpty(fileName))
                     {
                         dto.Attachments.Add(new Attachment
                         {
                             DownloadLink = content,
-                            MediaType = mimeType
+                            MediaType = mimeType,
+                            FileName = fileName
                         });
                     }
                 }

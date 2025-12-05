@@ -1,5 +1,4 @@
 ﻿using dayforce_assignment.Server.DTOs.Jira;
-using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Jira;
 using System.Text.Json;
 
@@ -9,53 +8,54 @@ namespace dayforce_assignment.Server.Services.Jira
     {
         private readonly IJiraHttpClientService _jiraHttpClientService;
         private readonly ICustomFieldService _customFieldService;
-        private readonly ILogger<TriageSubtaskService> _logger;
 
         public TriageSubtaskService(
             IJiraHttpClientService jiraHttpClientService,
-            ICustomFieldService customFieldService,
-            ILogger<TriageSubtaskService> logger)
+            ICustomFieldService customFieldService)
         {
             _jiraHttpClientService = jiraHttpClientService;
             _customFieldService = customFieldService;
-            _logger = logger;
         }
 
-        // Searches for Triage subtask and return the json subtask issue.
+        // Searches for Triage subtask in Jira subtasks & Jira outward issue links. Returns undefined jsonElement if no triage subtask found.
         public async Task<JsonElement> GetSubtaskAsync(JiraIssueDto jiraIssue)
         {
             if (jiraIssue.Subtasks.Any())
             {
-                JsonElement jsonSubTaskIssue = new JsonElement();
+                var triageSubtask = await FindTriageIssueAsync(jiraIssue.Subtasks);
+                if (triageSubtask.ValueKind != JsonValueKind.Undefined)
+                    return triageSubtask;
+            }
 
-                foreach (SubtaskInfo subtask in jiraIssue.Subtasks)
+            if (jiraIssue.OutwardIssueLinks.Any())
+            {
+                var triageLinkedIssue = await FindTriageIssueAsync(jiraIssue.OutwardIssueLinks);
+                if (triageLinkedIssue.ValueKind != JsonValueKind.Undefined)
+                    return triageLinkedIssue;
+            }
+
+             return new JsonElement();
+        }
+
+
+        // Finds custom field mapping for subtask type & checks if type is traige. Returns undefined jsonelement if subtask type != triage.
+        private async Task<JsonElement> FindTriageIssueAsync(IEnumerable<IssueInfo> relatedIssues)
+        {
+            foreach (IssueInfo issueInfo in relatedIssues)
+            {
+                JsonElement issue = await _jiraHttpClientService.GetIssueAsync(issueInfo.Key);
+
+                string subTaskTypeFieldId = _customFieldService.GetCustomFieldId(issue, "Sub-Task Type");
+                if (string.IsNullOrWhiteSpace(subTaskTypeFieldId))
+                    continue;
+
+                if(issue.TryGetProperty("fields", out var fields) &&
+                    fields.TryGetProperty(subTaskTypeFieldId, out var subTaskType) &&
+                    subTaskType.ValueKind != JsonValueKind.Null &&
+                    subTaskType.TryGetProperty("value", out var subTaskTypeValue)&&
+                    subTaskTypeValue.GetString() == "Triage")
                 {
-                    try
-                    {
-                        jsonSubTaskIssue = await _jiraHttpClientService.GetIssueAsync(subtask.Key);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to fetch Jira subtask {SubtaskKey}", subtask.Key);
-                        continue;
-                    }
-
-                    string subtaskTypeFieldId = _customFieldService.GetCustomFieldId(jsonSubTaskIssue, "Sub-Task Type");
-
-                    if (string.IsNullOrWhiteSpace(subtaskTypeFieldId))
-                        continue;
-
-                    if (!jsonSubTaskIssue.TryGetProperty("fields", out var fields))
-                        continue;
-
-                    if (!fields.TryGetProperty(subtaskTypeFieldId, out var subtaskType))
-                        continue;
-
-                    if (!subtaskType.TryGetProperty("value", out var subtaskValue))
-                        continue;
-
-                    if (subtaskValue.GetString() == "Triage")
-                        return jsonSubTaskIssue;
+                    return issue;
                 }
             }
             return new JsonElement();

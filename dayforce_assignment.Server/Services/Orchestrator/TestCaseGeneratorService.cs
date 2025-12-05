@@ -40,9 +40,8 @@ namespace dayforce_assignment.Server.Services.Orchestrator
             if (string.IsNullOrWhiteSpace(jirakey))
                 throw new ArgumentException("Jira key must be provided", nameof(jirakey));
 
-
             // Load system prompt
-            string systemPromptPath = "SystemPrompts/TestCaseGeneratorV6.txt";
+            string systemPromptPath = "SystemPrompts/TestCaseGenerator.txt";
 
             if (!File.Exists(systemPromptPath))
                 throw new FileNotFoundException($"System prompt file not found: {systemPromptPath}");
@@ -97,7 +96,7 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 
 
 
-
+        // Generates test cases
         private async Task<ChatMessageContent?> TryGenerateAsync(
            JiraIssueDto jiraIssue,
            bool isBug,

@@ -3,8 +3,6 @@ using dayforce_assignment.Server.DTOs.Jira;
 using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Common;
 using dayforce_assignment.Server.Interfaces.Confluence;
-using dayforce_assignment.Server.Services.Common;
-using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text.Json;
@@ -16,26 +14,24 @@ namespace dayforce_assignment.Server.Services.Confluence
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IChatCompletionService _chatCompletionService;
         private readonly IJsonFormatterService _jsonFormatterService;
-        private readonly ILogger<ConfluenceSearchService> _logger;
         private readonly string _baseUrl;
         private readonly string _space;
 
-        public ConfluenceSearchService(IHttpClientFactory httpClientFactory,
+        public ConfluenceSearchService(
+            IHttpClientFactory httpClientFactory,
             IConfiguration configuration,
-             IChatCompletionService chatCompletionService,
-            IJsonFormatterService jsonFormatterService,
-            ILogger<ConfluenceSearchService> logger)
+            IChatCompletionService chatCompletionService,
+            IJsonFormatterService jsonFormatterService)
         {
             _httpClientFactory = httpClientFactory;
             _chatCompletionService = chatCompletionService;
             _jsonFormatterService = jsonFormatterService;
             _baseUrl = configuration["Atlassian:BaseUrl"] ?? throw new AtlassianConfigurationException("Default Atlassian base URL is not configured.");
             _space = configuration["Atlassian:DefaultConfluenceSpace"] ?? throw new AtlassianConfigurationException("Default Atlassian Confluence space is not configured.");
-            _logger = logger;
         }
 
 
-        // Search confluence pages
+        // Searches for confluence pages.
         public async Task<JsonElement> SearchPageAsync(string cql)
         {
             var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
@@ -69,7 +65,7 @@ namespace dayforce_assignment.Server.Services.Confluence
         }
 
 
-        // get search paramters.
+        // Gets search paramters. Returns new ConfluenceSearcParametersDto initialized with empty list if no parameters found.
         public async Task<ConfluenceSearchParametersDto> GetParametersAsync(JiraIssueDto jiraIssue)
         {
             
@@ -77,8 +73,7 @@ namespace dayforce_assignment.Server.Services.Confluence
 
                 var history = new ChatHistory();
 
-                // Load system prompt
-                string systemPromptPath = "SystemPrompts/ConfluencePageSearchParameterV2.txt";
+                string systemPromptPath = "SystemPrompts/ConfluencePageSearchParameterV3.txt";
 
                 if (!File.Exists(systemPromptPath))
                     throw new FileNotFoundException($"System prompt file not found: {systemPromptPath}");
@@ -122,18 +117,16 @@ namespace dayforce_assignment.Server.Services.Confluence
         }
 
 
-        // Filters search result
+        // Filters search result. Returns new ConfluenceSearchResultsDto initialized with empty list if no relevant confluence pages found.
         public async Task<ConfluenceSearchResultsDto> FilterResultAsync(JiraIssueDto jiraIssue, ConfluenceSearchResultsDto searchResults)
         {
-            if (searchResults.ConfluencePagesMetadata?.Count == 0)
+            if (searchResults.ConfluencePagesMetadata.Any() == false)
                 return new ConfluenceSearchResultsDto();
 
             var dto = new ConfluenceSearchResultsDto();
 
             var history = new ChatHistory();
 
-
-            // Load system prompt
             string systemPromptPath = "SystemPrompts/ConfluencePageSearchFilterV2.txt";
 
             if (!File.Exists(systemPromptPath))
@@ -177,49 +170,6 @@ namespace dayforce_assignment.Server.Services.Confluence
                 throw new ConfluenceSearchFilterException($"Failed to parse Json response from AI for filtered search results for Jira issue {jiraIssue.Key}");
             }
         }
-
-
-
-
-        //    try
-        //    {
-        //        var history = new ChatHistory();
-
-        //        string systemPrompt = File.ReadAllText("SystemPrompts/ConfluencePageSearchFilterV2.txt");
-        //        history.AddSystemMessage(systemPrompt);
-
-        //        history.AddUserMessage(JsonSerializer.Serialize(jiraStory));
-        //        history.AddUserMessage(JsonSerializer.Serialize(searchResults));
-
-        //        var response = await _chatCompletionService.GetChatMessageContentAsync(history);
-
-        //        var jsonResponse = _jsonFormatterService.FormatJson(response.ToString());
-
-        //        var options = new JsonSerializerOptions
-        //        {
-        //            PropertyNameCaseInsensitive = true
-        //        };
-
-        //        var filteredSearchResults = JsonSerializer.Deserialize<ConfluenceSearchResultsDto>(jsonResponse, options);
-
-        //        if (filteredSearchResults == null)
-        //            throw new ConfluenceSearchFilterExtractionException(jiraKey, "Deserialized object is null.");
-
-        //        return filteredSearchResults;
-        //    }
-        //    catch (JsonException ex)
-        //    {
-        //        throw new ConfluenceSearchFilterExtractionException(jiraKey, $"JSON parsing error: {ex.Message}");
-        //    }
-        //    catch (Exception ex) when (!(ex is DomainException))
-        //    {
-        //        throw new ConfluenceSearchFilterExtractionException(jiraKey, $"Unexpected error: {ex.Message}");
-        //    }
-        //}
-
-
-
-
 
 
     }
