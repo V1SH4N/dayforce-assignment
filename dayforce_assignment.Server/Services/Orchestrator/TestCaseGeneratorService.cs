@@ -58,7 +58,7 @@ namespace dayforce_assignment.Server.Services.Orchestrator
             }
             catch (Exception ex) when (ex is DomainException)
             {
-                _logger.LogWarning(ex, "Skipping Jira remote links.");
+                _logger.LogWarning(ex.Message, "Skipping Jira remote links.");
             }
 
             JiraIssueDto jiraIssue = _jiraMapperService.MapIssueToDto(jsonJiraIssue, jsonJiraRemoteLinks);
@@ -113,6 +113,7 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 
             try
             {
+                // LLM call
                 return await _chatCompletionService.GetChatMessageContentAsync(history);
             }
             catch (HttpOperationException ex) when (ex.StatusCode.HasValue && (int)ex.StatusCode.Value == 413) // Error when chatHistory exceeds token limit

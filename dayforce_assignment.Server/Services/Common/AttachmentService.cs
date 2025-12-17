@@ -3,6 +3,7 @@ using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Common;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 using System.Text;
 
 namespace dayforce_assignment.Server.Services.Common
@@ -21,7 +22,7 @@ namespace dayforce_assignment.Server.Services.Common
             _logger = logger;
         }
 
-        // Download attachments. Throws exception if attachment fails. Trim attachment if it is csv file.
+        // Download attachments. Throws exception if attachment fails. Trims attachment if it is csv file.
         public async Task<KernelContent> DownloadAttachmentAsync(string downloadLink, string mediaType, string fileName)
         {
             var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
@@ -64,7 +65,7 @@ namespace dayforce_assignment.Server.Services.Common
 
             }
 
-            throw new UnsupportedAttachmentMediaTypeException(mediaType);
+            throw new UnsupportedAttachmentMediaTypeException(mediaType, downloadLink);
 
         }
 
@@ -81,9 +82,9 @@ namespace dayforce_assignment.Server.Services.Common
                 {
                     return await DownloadAttachmentAsync(att.DownloadLink, att.MediaType, att.FileName);
                 }
-                catch
+                catch(Exception ex)
                 {
-                    _logger.LogWarning($"Download attachment failed for {att.DownloadLink}");
+                    _logger.LogWarning(ex.Message, $"Download attachment failed for {att.DownloadLink}");
                     return null;
                 }
             });
@@ -126,15 +127,15 @@ namespace dayforce_assignment.Server.Services.Common
                                 return null;
                         }
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
-                        _logger.LogWarning($"Failed to summarize image attachment failed for {att.DownloadLink}. Skipping attachment");
+                        _logger.LogWarning(ex.Message, $"Failed to summarize image attachment failed for {att.DownloadLink}. Skipping attachment");
                         return null;
                     }
                 }
-                catch
+                catch(Exception ex)
                 {
-                    _logger.LogWarning($"Download attachment failed for {att.DownloadLink}. Skipping attachment");
+                    _logger.LogWarning(ex.Message, $"Download attachment failed for {att.DownloadLink}. Skipping attachment");
                     return null;
                 }
             });

@@ -51,19 +51,24 @@ namespace dayforce_assignment.Server.Services.Orchestrator
         }
 
 
-        // Builds user prompt by adding jira issue, relevant confluence pages, and triage subtask (if issue is bug).
+        // Build user prompt.
         public async Task<ChatMessageContentItemCollection> BuildAsync(JiraIssueDto jiraIssue, bool isBugIssue, bool summarizeAttachment)
         {
             var userPrompt = new ChatMessageContentItemCollection();
 
+            // Add jira issue to user prompt.
             await AddJiraIssueAsync(userPrompt, jiraIssue, summarizeAttachment);
 
-            ConfluencePageReferencesDto confluencePageReferences = await GetRelevantConfluencePagesAsync(jiraIssue, isBugIssue);
+            // Get relevant confluence pages references
+            ConfluencePageReferencesDto confluencePageReferences = await GetRelevantConfluencePagesAsync(jiraIssue);
 
+            // Add relevant confluence pages to user prompt.
             await AddConfluencePagesAsync(userPrompt, confluencePageReferences, summarizeAttachment);
+
 
             if (isBugIssue)
             {
+                // Add triage subtask to user prompt.
                 await AddTriageSubtaskAsync(userPrompt, jiraIssue, summarizeAttachment);
             }
 
@@ -72,7 +77,7 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 
 
 
-        // Adds jira issue along with any attachments to user prompt.
+        // Add jira issue ( with attachments ) to user prompt.
         private async Task AddJiraIssueAsync(ChatMessageContentItemCollection userPrompt, JiraIssueDto jiraIssue, bool summarizeAttachment)
         {
             userPrompt.Add(new TextContent("Jira issue:"));
@@ -86,7 +91,7 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 
 
 
-        // Find subtask with type "Triage" and add it (with comments and attachments) to user prompt. Skips triage subtask if exception occurs.
+        // Get subtask with type "Triage" and add it (with comments and attachments) to user prompt. Skips triage subtask if exception occurs.
         private async Task AddTriageSubtaskAsync(ChatMessageContentItemCollection userPrompt, JiraIssueDto jiraIssue, bool summarizeAttachment)
         {
             try
@@ -105,15 +110,15 @@ namespace dayforce_assignment.Server.Services.Orchestrator
                     await AddAttachmentsAsync(userPrompt, triageSubtask.Attachments, summarizeAttachment, "Triage subtask attachments:");
                 }
             }
-            catch (Exception) 
+            catch (Exception)
             {
                 _logger.LogWarning("Unexpected error occured. Skipping Triage subtask");
                 return;
             }
         }
-            
-            
-        // Downloads attachment, summarize if (summarizeAttachment is true), then adds it to user prompt.
+
+
+        // Download attachment, summarize if (summarizeAttachment is true), then add to user prompt.
         private async Task AddAttachmentsAsync(ChatMessageContentItemCollection userPrompt, IEnumerable<Attachment> attachments, bool summarizeAttachment, string header)
         {
             userPrompt.Add(new TextContent(header + "\n"));
@@ -138,46 +143,34 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 
 
 
-        // Extracts any relevant confluence pages references from jira issue. If (none found & issue is not a bug), searches for relevant confluence pages references. Returns new ConfluencePageReferencesDto if no refernces found
-        private async Task<ConfluencePageReferencesDto> GetRelevantConfluencePagesAsync(JiraIssueDto jiraIssue, bool isBugIssue)
+        // Extract any relevant confluence pages from Jira issue. Search for any additional confluence pages if information is lacking. Returns new ConfluencePageReferenceDto if no references found.
+        private async Task<ConfluencePageReferencesDto> GetRelevantConfluencePagesAsync(JiraIssueDto jiraIssue)
         {
-            ConfluencePageReferencesDto confluencePageReferences = await _confluencePageReferenceExtractor.GetReferencesAsync(jiraIssue);
-                
-            if (!confluencePageReferences.ConfluencePages.Any() && !isBugIssue)
-            {
-                try
-                {
-                    confluencePageReferences = await _confluencePageSearchOrchestrator.SearchConfluencePageReferencesAsync(jiraIssue);
-                    return confluencePageReferences ?? new ConfluencePageReferencesDto();
-                }
-                catch
-                {
-                    return new ConfluencePageReferencesDto();
-                }
-            }
-            return confluencePageReferences;
+            ConfluencePageReferencesDto confluencePageRefereces = _confluencePageReferenceExtractor.GetReferences(jiraIssue);
+            await _confluencePageSearchOrchestrator.SearchConfluencePageReferencesAsync(jiraIssue, confluencePageRefereces);
+            return confluencePageRefereces;
         }
 
 
 
-        // Adds a summary of a each confluence page (including its attachments) to user prompt. Skips confluence page summary if exception is thrown.
+        // Add summary of each confluence page (including its attachments) to user prompt. Skips confluence page summary if exception is thrown.
         private async Task AddConfluencePagesAsync(ChatMessageContentItemCollection userPrompt, ConfluencePageReferencesDto confluencePageReferences, bool summarizeAttachment)
         {
             var confluencePageTasks = confluencePageReferences.ConfluencePages.Select(async page =>
             {
                 try
                 {
-                    JsonElement jsonConfluencePage = await _confluenceHttpClientService.GetPageAsync(page.baseUrl, page.pageId);
-                    JsonElement jsonConfluenceComments = await _confluenceHttpClientService.GetCommentsAsync(page.baseUrl, page.pageId);
+                    JsonElement jsonConfluencePage = await _confluenceHttpClientService.GetPageAsync(page.Value.baseUrl, page.Value.pageId);
+                    JsonElement jsonConfluenceComments = await _confluenceHttpClientService.GetCommentsAsync(page.Value.baseUrl, page.Value.pageId);
 
                     ConfluencePageDto confluencePage = _confluenceMapperService.MapPageToDto(jsonConfluencePage, jsonConfluenceComments);
 
-                    string summarizedConfluencePage = await _confluencePageSummaryService.SummarizePageAsync(confluencePage, page.baseUrl, summarizeAttachment);
+                    string summarizedConfluencePage = await _confluencePageSummaryService.SummarizePageAsync(confluencePage, page.Value.baseUrl, summarizeAttachment);
                     return $"Consider the following summarized confluence page only if it is directly relevant to the above Jira issue:\n{summarizedConfluencePage}";
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Skipping Confluence page {PageId}", page.pageId);
+                    _logger.LogWarning(ex, "Skipping Confluence page {PageId}", page.Value.pageId);
                     return null;
                 }
             });

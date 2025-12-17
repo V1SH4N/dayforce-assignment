@@ -18,26 +18,25 @@ namespace dayforce_assignment.Server.Services.Orchestrator
             IConfiguration configuration)
         {
             _confluenceSearchService = confluenceSearchService;
-            _baseUrl = configuration["Atlassian:BaseUrl"] ?? throw new AtlassianConfigurationException("Default Atlassian base URL is not configured."); ;
+            _baseUrl = configuration["Atlassian:BaseUrl"] ?? throw new AtlassianConfigurationException("Default Atlassian base URL is not configured.");
         }
 
-        public async Task<ConfluencePageReferencesDto> SearchConfluencePageReferencesAsync(JiraIssueDto jiraIssue)
+        public async Task<ConfluencePageReferencesDto> SearchConfluencePageReferencesAsync(JiraIssueDto jiraIssue, ConfluencePageReferencesDto confluencePagereferences)
         {
             // Get search query parameters
             ConfluenceSearchParametersDto searchParametersList = await _confluenceSearchService.GetParametersAsync(jiraIssue);
 
             if (!searchParametersList.SearchParameters.Any())
-                return new ConfluencePageReferencesDto();
-
+                return confluencePagereferences;
 
             // Execute search tasks in parallel
-            var pagesMetadata = new ConcurrentDictionary<string, ConfluencePageMetadata>();
+            var searchResults = new ConcurrentDictionary<string, ConfluencePage>();
 
             var searchTasks = searchParametersList.SearchParameters.Select(async searchParameter =>
             {
-                JsonElement searchResult = await _confluenceSearchService.SearchPageAsync(searchParameter);
+                JsonElement searchResponse = await _confluenceSearchService.SearchPageAsync(searchParameter);
 
-                if (searchResult.TryGetProperty("results", out JsonElement results))
+                if (searchResponse.TryGetProperty("results", out JsonElement results))
                 {
                     foreach (JsonElement item in results.EnumerateArray())
                     {
@@ -46,7 +45,11 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 
                         if (!string.IsNullOrEmpty(id))
                         {
-                            pagesMetadata.TryAdd(id, new ConfluencePageMetadata { Id = id, Title = title });
+                            searchResults.TryAdd(id, new ConfluencePage { 
+                                pageId = id,
+                                title = title,
+                                baseUrl = _baseUrl
+                            });
                         }
                     }
                 }
@@ -54,27 +57,19 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 
             await Task.WhenAll(searchTasks);
 
-            var searchResults = new ConfluenceSearchResultsDto
-            {
-                ConfluencePagesMetadata = pagesMetadata.Values.ToList()
-            };
-
             // Filter search results
-            ConfluenceSearchResultsDto filteredSearchResults = await _confluenceSearchService.FilterResultAsync(jiraIssue, searchResults);
+            ConfluencePageReferencesDto filteredSearchResults = await _confluenceSearchService.FilterResultAsync(jiraIssue, searchResults);
 
-            // Convert filtered search results to ConfluencePageReferencesDto
-            var confluencePageReferences = new ConfluencePageReferencesDto();
-
-            foreach (ConfluencePageMetadata result in filteredSearchResults.ConfluencePagesMetadata)
+            foreach (ConfluencePage result in filteredSearchResults.ConfluencePages.Values)
             {
-                confluencePageReferences.ConfluencePages.Add(new ConfluencePage
+                confluencePagereferences.ConfluencePages.TryAdd(result.pageId, new ConfluencePage
                 {
                     baseUrl = _baseUrl,
-                    pageId = result.Id
-                });
+                    pageId = result.pageId
+                });   
             }
 
-            return confluencePageReferences;
+            return confluencePagereferences;
         }
     }
 }

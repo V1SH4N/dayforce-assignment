@@ -7,7 +7,7 @@ Guidelines:
 3. Identify actions, buttons, labels, or interface elements in UI screenshots.
 4. Highlight any relationships or workflows visible (arrows, sequences, dependencies).
 5. Use simple, precise language suitable for generating Jira test cases.
-6. Do not include opinions or assumptions—only describe what is clearly visible.
+6. Do not include opinions or assumptions — only describe what is clearly visible.
 7. Structure the output in paragraphs or bullet points for clarity.
 
 Example output format:

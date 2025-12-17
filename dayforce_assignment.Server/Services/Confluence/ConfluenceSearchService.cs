@@ -5,6 +5,8 @@ using dayforce_assignment.Server.Interfaces.Common;
 using dayforce_assignment.Server.Interfaces.Confluence;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace dayforce_assignment.Server.Services.Confluence
@@ -73,7 +75,7 @@ namespace dayforce_assignment.Server.Services.Confluence
 
                 var history = new ChatHistory();
 
-                string systemPromptPath = "SystemPrompts/ConfluencePageSearchParameterV3.txt";
+                string systemPromptPath = "SystemPrompts/ConfluencePageSearchParameterV4.txt";   // v4 and v5 still untested
 
                 if (!File.Exists(systemPromptPath))
                     throw new FileNotFoundException($"System prompt file not found: {systemPromptPath}");
@@ -88,7 +90,7 @@ namespace dayforce_assignment.Server.Services.Confluence
 
                 var response = new ChatMessageContent();
 
-                try
+            try
                 {
                     response = await _chatCompletionService.GetChatMessageContentAsync(history);
                 }
@@ -118,12 +120,12 @@ namespace dayforce_assignment.Server.Services.Confluence
 
 
         // Filters search result. Returns new ConfluenceSearchResultsDto initialized with empty list if no relevant confluence pages found.
-        public async Task<ConfluenceSearchResultsDto> FilterResultAsync(JiraIssueDto jiraIssue, ConfluenceSearchResultsDto searchResults)
+        public async Task<ConfluencePageReferencesDto> FilterResultAsync(JiraIssueDto jiraIssue, ConcurrentDictionary<string, ConfluencePage> searchResults)
         {
-            if (searchResults.ConfluencePagesMetadata.Any() == false)
-                return new ConfluenceSearchResultsDto();
+            if (searchResults.IsEmpty)
+                return new ConfluencePageReferencesDto();
 
-            var dto = new ConfluenceSearchResultsDto();
+            var dto = new ConfluencePageReferencesDto();
 
             var history = new ChatHistory();
 
@@ -161,9 +163,9 @@ namespace dayforce_assignment.Server.Services.Confluence
                     PropertyNameCaseInsensitive = true
                 };
 
-                dto = JsonSerializer.Deserialize<ConfluenceSearchResultsDto>(jsonResponse, options);
+                dto = JsonSerializer.Deserialize<ConfluencePageReferencesDto>(jsonResponse, options);
 
-                return dto ?? new ConfluenceSearchResultsDto();
+                return dto ?? new ConfluencePageReferencesDto();
             }
             catch (JsonException)
             {

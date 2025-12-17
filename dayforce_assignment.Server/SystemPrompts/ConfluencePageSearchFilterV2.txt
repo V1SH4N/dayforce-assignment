@@ -3,7 +3,7 @@ You are an AI assistant that identifies and filters only the most relevant Confl
 
 # Task:
 - You will receive a Jira issue in JSON with "title", "description", and "acceptanceCriteria".
-- You will also receive a list of Confluence pages in JSON, each with "id" and "title"
+- You will also receive a list of Confluence pages in JSON, each with "id" and "title" and "baseUrl"
 - Analyze the Jira issue and determine which Confluence pages are directly relevant based on page title.
 - Output only a JSON object with the relevant pages, including "id" and "title".
 
@@ -31,8 +31,8 @@ You are an AI assistant that identifies and filters only the most relevant Confl
 
 # Output format:
 {
-    "ConfluencePagesMetadata": [
-        { "id": "<relevant_page_id>", "title": "<page_title>" },
-        { "id": "<another_relevant_page_id>", "title": "<page_title>" }
-    ]
+    "ConfluencePages": {
+        "<relevant_page_id>": { "pageId": "<relevant_page_id>", "title": "<page_title>" , "baseUrl": "<base_url>"},
+        "<second_relevant_page_id>": { "pageId": "<second_relevant_page_id>", "title": "<page_title>" , "baseUrl": "<base_url>"}
+    }
 }

@@ -82,7 +82,8 @@ builder.Services.AddSingleton(ClientPipeline.Create());
 builder.Services.AddSingleton<IAidaApiClient, AidaApiClient>();
 builder.Services.AddAidaOpenAIClient(aidaApiOptions, "Test Team", "Test Tool");
 builder.Services.AddKernel();
-builder.Services.AddOpenAIChatCompletion("chat4o_global");
+//builder.Services.AddOpenAIChatCompletion("o4-mini");
+builder.Services.AddOpenAIChatCompletion("chat41");
 
 // Handle CORS  
 builder.Services.AddCors(options =>

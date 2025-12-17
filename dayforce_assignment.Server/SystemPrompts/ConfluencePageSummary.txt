@@ -1,4 +1,4 @@
-The user will upload a Confluence page in JSON format, including all attachments.
+A Confluence page will be provided  in JSON format, including all attachments.
 
 # Your task:
 * Analyze the Confluence page content and attachments in detail.

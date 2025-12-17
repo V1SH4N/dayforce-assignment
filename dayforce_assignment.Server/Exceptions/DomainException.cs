@@ -162,8 +162,8 @@
 
     public class UnsupportedAttachmentMediaTypeException : ConfluenceException
     {
-        public UnsupportedAttachmentMediaTypeException(string mediaType)
-            : base($"Unsupported attachment media type: '{mediaType}'") { }
+        public UnsupportedAttachmentMediaTypeException(string mediaType, string downloadLink)
+            : base($"Unsupported attachment media type for {downloadLink}: '{mediaType}'") { }
     }
 
     public class AttachmentSummaryException : ConfluenceException
