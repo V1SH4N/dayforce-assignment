@@ -5,7 +5,7 @@ namespace dayforce_assignment.Server.Interfaces.Orchestrator
 {
     public interface IConfluencePageSearchOrchestrator
     {
-        Task<ConfluencePageReferencesDto> SearchConfluencePageReferencesAsync(JiraIssueDto jiraStory, ConfluencePageReferencesDto confluencePageReferences  );
+        Task<ConfluencePageReferencesDto> SearchConfluencePageReferencesAsync(JiraIssueDto jiraStory, ConfluencePageReferencesDto confluencePageReferences, CancellationToken cancellationToken);
 
     }
 }

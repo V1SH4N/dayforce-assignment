@@ -1,7 +1,7 @@
-﻿using dayforce_assignment.Server.Interfaces.Orchestrator;
+﻿using dayforce_assignment.Server.EventSinks;
+using dayforce_assignment.Server.Exceptions;
+using dayforce_assignment.Server.Interfaces.Orchestrator;
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
-using System.Diagnostics;
 
 namespace dayforce_assignment.Server.Controllers
 {
@@ -10,53 +10,54 @@ namespace dayforce_assignment.Server.Controllers
     public class TestCaseGeneratorController : ControllerBase
     {
         private readonly ITestCaseGeneratorService _testCaseGeneratorService;
+        private readonly ILogger<TestCaseGeneratorController> _logger;
 
-        public TestCaseGeneratorController(ITestCaseGeneratorService testCaseGeneratorService)
+        public TestCaseGeneratorController(ITestCaseGeneratorService testCaseGeneratorService, ILogger<TestCaseGeneratorController> logger)
+
         {
             _testCaseGeneratorService = testCaseGeneratorService;
-        }
-
-        [HttpGet("testCases")]
-        public async Task<ActionResult<JsonElement>> GenerateTestCases([FromQuery] string jiraId)
-        {
-            var sw = new Stopwatch();
-            sw.Start();
-            var result = await _testCaseGeneratorService.GenerateTestCasesAsync(jiraId);
-            sw.Stop();
-            Console.WriteLine($"\n\n\n\n\n\n\ntime: {sw.ElapsedMilliseconds}");
-            return Ok(result);
+            _logger = logger;
         }
 
 
-
-
-
-
-        [HttpGet("sseTest")]
-        public async Task sseTest([FromQuery] string jiraId, CancellationToken cancellationToken)
+        [HttpGet("generate/stream")]
+        public async Task Stream([FromQuery] string jiraKey, CancellationToken cancellationToken)
         {
-            // Set necessary headers for Server-Sent Events
+            Response.Headers.CacheControl = "no-cache";
             Response.ContentType = "text/event-stream";
-            Response.Headers["Cache-Control"] = "no-cache";
-            //Response.Headers["Connection"] = "keep-alive";
-            // Loop to continuously send events
-            while (!cancellationToken.IsCancellationRequested)
+
+            var sink = new SseEventSink(Response);
+            HttpContext.Items["SseEventSink"] = sink;
+
+            try
             {
-                var eventData = $"data: The current time is {DateTime.Now}\\n\\n";
-
-                // Write the event data to the response body
-                await Response.WriteAsync(eventData, cancellationToken);
-
-                // Flush the buffer to send the data to the client immediately
-                await Response.Body.FlushAsync(cancellationToken);
-
+                await _testCaseGeneratorService.GenerateTestCasesAsync(jiraKey, sink, cancellationToken);
             }
+            catch (OperationCanceledException) { }
+            
+            catch (DomainException domainEx)
+            {
+                await sink.ErrorEventAsync(domainEx.GetType().Name, domainEx.Message, (int)domainEx.StatusCode, cancellationToken);
+            }
+            catch (HttpRequestException httpEx)
+            {
+                string title = "External service error";
+                string detail = "Failed to fetch data from Jira endpoint";
+                await sink.ErrorEventAsync(title, detail, StatusCodes.Status503ServiceUnavailable, cancellationToken);
+                _logger.LogError(httpEx, "Failed to fetch data from Jira for Jira key: {JiraKey}", jiraKey);
+            }
+            catch (Exception ex)
+            {
+                string title = "Internal server error";
+                string detail = "An unexpected error occurred.";
+                await sink.ErrorEventAsync(title, detail, StatusCodes.Status500InternalServerError, cancellationToken);
+                _logger.LogError(ex, "Unexpected error occurred while generating test cases for Jira key: {JiraKey}", jiraKey);
+            }
+            finally
+            {
+                await sink.RequestCompleteAsync(cancellationToken);
+            }
+           
         }
     }
-
-
-
-
-
-
 }

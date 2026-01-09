@@ -1,10 +1,11 @@
 ﻿using dayforce_assignment.Server.DTOs.Jira;
 using dayforce_assignment.Server.Exceptions;
-using dayforce_assignment.Server.Interfaces.Common;
+using dayforce_assignment.Server.Interfaces.EventSinks;
 using dayforce_assignment.Server.Interfaces.Jira;
 using dayforce_assignment.Server.Interfaces.Orchestrator;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using System.Text;
 using System.Text.Json;
 
 namespace dayforce_assignment.Server.Services.Orchestrator
@@ -15,111 +16,144 @@ namespace dayforce_assignment.Server.Services.Orchestrator
         private readonly IJiraMapperService _jiraMapperService;
         private readonly IUserPromptBuilder _userPromptBuilder;
         private readonly IChatCompletionService _chatCompletionService;
-        private readonly IJsonFormatterService _jsonFormatterService;
-        private readonly ILogger<TestCaseGeneratorService> _logger;
 
         public TestCaseGeneratorService(
             IJiraHttpClientService jiraHttpClietService,
             IJiraMapperService jiraMapperService,
             IUserPromptBuilder userPromptBuilder,
-            IChatCompletionService chatCompletionService,
-            IJsonFormatterService jsonFormatterService,
-            ILogger<TestCaseGeneratorService> logger)
+            IChatCompletionService chatCompletionService)
         {
             _jiraHttpClietService = jiraHttpClietService;
             _jiraMapperService = jiraMapperService;
             _userPromptBuilder = userPromptBuilder;
             _chatCompletionService = chatCompletionService;
-            _jsonFormatterService = jsonFormatterService;
-            _logger = logger;
         }
 
-        public async Task<JsonElement> GenerateTestCasesAsync(string jirakey)
+
+        public async Task GenerateTestCasesAsync(string jirakey, ISseEventSink events, CancellationToken cancellationToken)
         {
-            // Jira key validation
+
+            // Get Jira issue dto.
+
             if (string.IsNullOrWhiteSpace(jirakey))
                 throw new ArgumentException("Jira key must be provided", nameof(jirakey));
 
-            // Load system prompt
-            string systemPromptPath = "SystemPrompts/TestCaseGenerator.txt";
+            JsonElement jsonJiraIssue = await _jiraHttpClietService.GetIssueAsync(jirakey, cancellationToken);
 
-            if (!File.Exists(systemPromptPath))
-                throw new FileNotFoundException($"System prompt file not found: {systemPromptPath}");
-
-            string systemPrompt = await File.ReadAllTextAsync(systemPromptPath);
-
-
-            // Fetch Jira issue json with remote links
-            JsonElement jsonJiraIssue = await _jiraHttpClietService.GetIssueAsync(jirakey);
-            JsonElement jsonJiraRemoteLinks = new JsonElement();
+            var jsonJiraRemoteLinks = new JsonElement();
             try
             {
-                jsonJiraRemoteLinks = await _jiraHttpClietService.GetIssueRemoteLinksAsync(jirakey);
+                jsonJiraRemoteLinks = await _jiraHttpClietService.GetIssueRemoteLinksAsync(jirakey, cancellationToken);
             }
-            catch (Exception ex) when (ex is DomainException)
-            {
-                _logger.LogWarning(ex.Message, "Skipping Jira remote links.");
-            }
+            catch (DomainException) { }
 
             JiraIssueDto jiraIssue = _jiraMapperService.MapIssueToDto(jsonJiraIssue, jsonJiraRemoteLinks);
 
             bool isBugIssue = (jiraIssue.IssueType == IssueType.Bug);
 
+            await events.JiraFetchedAsync(jiraIssue.Key, jiraIssue.Title, cancellationToken);
 
-            // Generate test cases with retry logic
-            var response = await TryGenerateAsync(
+
+
+
+            // Generate test cases.
+
+            string systemPromptPath = "SystemPrompts/TestCaseGenerator.txt";
+
+            if (!File.Exists(systemPromptPath))
+                throw new FileNotFoundException($"System prompt file not found: {systemPromptPath}");
+
+            string systemPrompt = await File.ReadAllTextAsync(systemPromptPath, cancellationToken);
+
+            bool tokenExceeded =  await TryGenerateAsync(
                 jiraIssue,
                 isBugIssue,
                 summarizeAttachment: false,
-                systemPrompt
+                systemPrompt,
+                events,
+                cancellationToken
             );
 
-            if (response == null)
+            if (tokenExceeded == true)
             {
-                _logger.LogWarning("Token limit exceeded. Retrying with summarizeAttachment = true.");
-
-                response = await TryGenerateAsync(
+                tokenExceeded = await TryGenerateAsync(
                     jiraIssue,
                     isBugIssue,
                     summarizeAttachment: true,
-                    systemPrompt
+                    systemPrompt,
+                    events,
+                    cancellationToken
                 );
 
-                if (response == null)
+                if (tokenExceeded == true)
                     throw new TestCaseGenerationException(jirakey, "Failed to generate test cases. Token limit exceeded");
             }
 
-            // Format and return JSON response
-            JsonElement jsonResponse = _jsonFormatterService.FormatJson(response.ToString());
-            return jsonResponse;
         }
 
 
 
-        // Generates test cases
-        private async Task<ChatMessageContent?> TryGenerateAsync(
-           JiraIssueDto jiraIssue,
-           bool isBug,
-           bool summarizeAttachment,
-           string systemPrompt)
+
+        // Adds system message and user message to chat history, then calls AI model to stream chat content.
+        // Returns True if token limit exceeded.
+        // Returns False if test cases successfully generated.
+        private async Task<bool> TryGenerateAsync(
+            JiraIssueDto jiraIssue,
+            bool isBug,
+            bool summarizeAttachment,
+            string systemPrompt,
+            ISseEventSink events,
+            CancellationToken cancellationToken
+            )
         {
-            // Add system prompt
             var history = new ChatHistory();
             history.AddSystemMessage(systemPrompt);
 
-            // Add user prompt
-            ChatMessageContentItemCollection userPrompt = await _userPromptBuilder.BuildAsync(jiraIssue, isBug, summarizeAttachment);
+            var userPrompt = await _userPromptBuilder.BuildAsync(jiraIssue, isBug, summarizeAttachment, events, cancellationToken);
             history.AddUserMessage(userPrompt);
 
             try
             {
-                // LLM call
-                return await _chatCompletionService.GetChatMessageContentAsync(history);
+                var buffer = new StringBuilder();
+                int startIndex = -1;
+                int endIndex = -1;
+
+                await foreach (var token in _chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory: history,cancellationToken: cancellationToken))
+                {
+
+                    if (string.IsNullOrEmpty(token.Content))
+                        continue;
+
+                    Console.Write($"\n{token.Content.ToString()}");
+
+                    buffer.Append(token.Content);
+                    string bufferString = buffer.ToString();
+
+                    // Logic to parse individual test cases from streaming chat content.
+                    while (true)
+                    {
+                        startIndex = bufferString.IndexOf('{');
+                        endIndex = bufferString.IndexOf('}');
+
+                        if (startIndex == -1 || endIndex == -1 || endIndex < startIndex)
+                            break;
+
+                        string testCase = bufferString.Substring(startIndex, endIndex - startIndex + 1);
+                        JsonElement jsonTestCase = JsonSerializer.Deserialize<JsonElement>(testCase);
+
+                        await events.TestCaseGeneratedAsync(jsonTestCase, cancellationToken);
+
+                        buffer.Remove(startIndex, endIndex - startIndex + 1);
+                        bufferString = buffer.ToString();
+                    }
+                }
             }
             catch (HttpOperationException ex) when (ex.StatusCode.HasValue && (int)ex.StatusCode.Value == 413) // Error when chatHistory exceeds token limit
             {
-                return null;
+                return true;
             }
+            await events.TestCasesFinishedAsync(cancellationToken);
+            return false;
         }
     }
 }

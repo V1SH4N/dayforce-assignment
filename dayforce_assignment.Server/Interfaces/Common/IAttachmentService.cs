@@ -5,13 +5,13 @@ namespace dayforce_assignment.Server.Interfaces.Common
 {
     public interface IAttachmentService
     {
-        Task<KernelContent> DownloadAttachmentAsync(string downloadLink, string mediaType, string fileName);
+        Task<KernelContent> DownloadAttachmentAsync(string downloadLink, string mediaType, string fileName, CancellationToken cacellationToken);
 
-        Task<List<KernelContent>> DownloadAttachmentListAsync(IEnumerable<Attachment> attachments);
+        Task<List<KernelContent>> DownloadAttachmentListAsync(IEnumerable<Attachment> attachments, CancellationToken cancellationToken);
 
-        Task<List<string>> SummarizeAttachmentListAsync(IEnumerable<Attachment> attachments);
+        Task<List<string>> SummarizeAttachmentListAsync(IEnumerable<Attachment> attachments, CancellationToken cancellationToken);
 
-        Task<string> SummarizeImageAttachmentAsync(ImageContent attachment);
+        Task<string> SummarizeImageAttachmentAsync(string filename, ImageContent attachment, CancellationToken cancellationToken);
 
     }
 }

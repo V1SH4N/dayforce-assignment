@@ -1,4 +1,5 @@
 ﻿import React from "react";
+import { AiOutlineArrowLeft } from "react-icons/ai";
 import "./Button.css";
 
 interface Props {
@@ -8,7 +9,7 @@ interface Props {
 const BackButton: React.FC<Props> = ({ onClick }) => {
     return (
         <button className="backButton" onClick={onClick}>
-            ← Back
+            <AiOutlineArrowLeft />
         </button>
     );
 };

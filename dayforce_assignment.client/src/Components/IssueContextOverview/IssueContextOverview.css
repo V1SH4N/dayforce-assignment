@@ -1,0 +1,156 @@
+.issueContextContainer {
+    margin: 1rem 0;
+    background-color: white;
+    padding: 1rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.title {
+    display: inline-block;
+    text-align: start;
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: rgb(50, 50, 50);
+    text-decoration: none;
+}
+
+.title:hover {
+    text-decoration: underline;
+}
+
+.skeletonTitle {
+    display: inline-block;
+    margin: 0;
+    height: 1.2rem;
+    width: 450px; 
+    background-color: #bbb;
+    border-radius: 4px;
+    animation: pulse 1.2s infinite ease-in-out;
+}
+
+.subtitle {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: rgb(85, 85, 85);
+    margin: 1rem 0 0.5rem 0;
+}
+
+.skeletonSubtitle {
+    height: 1.05rem;
+    width: 200px;
+    background-color: #ccc;
+    border-radius: 4px;
+    animation: pulse 1.2s infinite ease-in-out;
+    margin: 1rem 0 0.5rem 0;
+}
+
+.listItem {
+    margin:.75rem 0 .75rem 1.25rem;
+    display: flex;
+    align-items: center;
+}
+
+.itemContent {
+    color: rgb(50, 50, 50);
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.itemLink {
+    color: rgb(50, 50, 50);
+    text-decoration: none;
+}
+.itemLink:hover {
+    text-decoration: underline;
+}
+
+.skeletonItem {
+    height: 0.95rem;
+    width: 375px;
+    background-color: #ddd;
+    border-radius: 4px;
+    animation: pulse 1.2s infinite ease-in-out;
+    margin: .9rem 0 .9rem 1.25rem;
+}
+
+.icon {
+    font-size: 0.85rem;
+    margin: 0 0 0 0.3rem;
+}
+
+.success {
+    color: green;
+    stroke-width: 1;
+}
+
+.error {
+    color: red;
+    cursor: pointer;
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+}
+
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+}
+
+
+
+
+
+.tooltipContainer {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltipBox {
+    position: absolute;
+    left: 110%;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(255, 230, 150, 0.95);
+    color: #212529;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    z-index: 10;
+    width: 350px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    white-space: normal;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.tooltipContainer:hover .tooltipBox {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.errorBox {
+    margin: 0.25rem;
+    background-color: #e4505d;
+    color: white;
+}

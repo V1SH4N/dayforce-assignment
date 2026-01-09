@@ -1,10 +1,7 @@
-﻿using System.Collections.Concurrent;
-
-namespace dayforce_assignment.Server.DTOs.Confluence
+﻿namespace dayforce_assignment.Server.DTOs.Confluence
 {
     public class ConfluencePageReferencesDto
     {
-        //public List<ConfluencePage> ConfluencePages { get; set; } = new();
         public Dictionary<string, ConfluencePage> ConfluencePages { get; set; } = new();
     }
 

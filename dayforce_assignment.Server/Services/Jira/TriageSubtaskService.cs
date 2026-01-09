@@ -17,42 +17,49 @@ namespace dayforce_assignment.Server.Services.Jira
             _customFieldService = customFieldService;
         }
 
-        // Searches for Triage subtask in Jira subtasks & Jira outward issue links. Returns undefined jsonElement if no triage subtask found.
-        public async Task<JsonElement> GetSubtaskAsync(JiraIssueDto jiraIssue)
+
+
+
+        // Searches for Triage subtask in Jira subtasks & Jira outward issue links.
+        // Returns undefined jsonElement if no triage subtask found.
+        public async Task<JsonElement> GetSubtaskAsync(JiraIssueDto jiraIssue, CancellationToken cancellationToken)
         {
             if (jiraIssue.Subtasks.Any())
             {
-                var triageSubtask = await FindTriageIssueAsync(jiraIssue.Subtasks);
+                var triageSubtask = await FindTriageIssueAsync(jiraIssue.Subtasks, cancellationToken);
                 if (triageSubtask.ValueKind != JsonValueKind.Undefined)
                     return triageSubtask;
             }
 
             if (jiraIssue.OutwardIssueLinks.Any())
             {
-                var triageLinkedIssue = await FindTriageIssueAsync(jiraIssue.OutwardIssueLinks);
+                var triageLinkedIssue = await FindTriageIssueAsync(jiraIssue.OutwardIssueLinks, cancellationToken);
                 if (triageLinkedIssue.ValueKind != JsonValueKind.Undefined)
                     return triageLinkedIssue;
             }
 
-             return new JsonElement();
+            return new JsonElement();
         }
 
 
-        // Finds custom field mapping for subtask type & checks if type is traige. Returns undefined jsonelement if subtask type != triage.
-        private async Task<JsonElement> FindTriageIssueAsync(IEnumerable<IssueInfo> relatedIssues)
+
+
+        // Finds custom field mapping for subtask type & checks if type is traige.
+        // Returns undefined jsonelement if subtask type != triage.
+        private async Task<JsonElement> FindTriageIssueAsync(IEnumerable<IssueInfo> relatedIssues, CancellationToken cancellationToken)
         {
             foreach (IssueInfo issueInfo in relatedIssues)
             {
-                JsonElement issue = await _jiraHttpClientService.GetIssueAsync(issueInfo.Key);
+                JsonElement issue = await _jiraHttpClientService.GetIssueAsync(issueInfo.Key, cancellationToken);
 
                 string subTaskTypeFieldId = _customFieldService.GetCustomFieldId(issue, "Sub-Task Type");
                 if (string.IsNullOrWhiteSpace(subTaskTypeFieldId))
                     continue;
 
-                if(issue.TryGetProperty("fields", out var fields) &&
+                if (issue.TryGetProperty("fields", out var fields) &&
                     fields.TryGetProperty(subTaskTypeFieldId, out var subTaskType) &&
                     subTaskType.ValueKind != JsonValueKind.Null &&
-                    subTaskType.TryGetProperty("value", out var subTaskTypeValue)&&
+                    subTaskType.TryGetProperty("value", out var subTaskTypeValue) &&
                     subTaskTypeValue.GetString() == "Triage")
                 {
                     return issue;
@@ -61,4 +68,8 @@ namespace dayforce_assignment.Server.Services.Jira
             return new JsonElement();
         }
     }
+    
+
+
+
 }

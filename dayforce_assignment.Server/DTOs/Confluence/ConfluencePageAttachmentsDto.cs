@@ -1,5 +1,4 @@
-﻿
-using dayforce_assignment.Server.DTOs.Common;
+﻿using dayforce_assignment.Server.DTOs.Common;
 
 namespace dayforce_assignment.Server.DTOs.Confluence
 {

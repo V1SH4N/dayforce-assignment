@@ -16,19 +16,20 @@ namespace dayforce_assignment.Server.Services.Jira
         }
 
 
-        // Gets Jira Issue json, throws exception if not found. 
-        public async Task<JsonElement> GetIssueAsync(string jiraKey)
+        // Gets Jira Issue json.
+        // Throws exception if not found. 
+        public async Task<JsonElement> GetIssueAsync(string jiraKey, CancellationToken cancellationToken)
         {
             var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
 
-            HttpResponseMessage response = await httpClient.GetAsync(new Uri(new Uri(_jiraBaseUrl), $"rest/api/3/issue/{jiraKey}?expand=names"));
+            HttpResponseMessage response = await httpClient.GetAsync(new Uri(new Uri(_jiraBaseUrl), $"rest/api/3/issue/{jiraKey}?expand=names"), cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
-                var jsonResponse = await response.Content.ReadFromJsonAsync<JsonElement>();
+                var jsonResponse = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
                 if (jsonResponse.ValueKind == JsonValueKind.Undefined)
                 {
-                    throw new JiraApiException((int)response.StatusCode, $"Jira returned an empty response for issue {jiraKey}.");
+                    throw new JiraApiException($"Jira returned an empty response for issue {jiraKey}.");
                 }
 
                 return jsonResponse;
@@ -40,20 +41,21 @@ namespace dayforce_assignment.Server.Services.Jira
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 throw new JiraIssueNotFoundException(jiraKey);
 
-            throw new JiraApiException((int)response.StatusCode, $"Unexpected Jira API error");
+            throw new JiraApiException($"Unexpected Jira API error");
         }
 
 
-        // Gets Jira Issue Remote Links json, throws exception if not found.
-        public async Task<JsonElement> GetIssueRemoteLinksAsync(string jiraKey)
+        // Gets Jira Issue Remote Links json.
+        // Throws exception if not found.
+        public async Task<JsonElement> GetIssueRemoteLinksAsync(string jiraKey, CancellationToken cancellationToken)
         {
             var client = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
 
-            HttpResponseMessage response = await client.GetAsync(new Uri(new Uri(_jiraBaseUrl), $"rest/api/3/issue/{jiraKey}/remotelink"));
+            HttpResponseMessage response = await client.GetAsync(new Uri(new Uri(_jiraBaseUrl), $"rest/api/3/issue/{jiraKey}/remotelink"), cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
-                var jsonResponse = await response.Content.ReadFromJsonAsync<JsonElement>();
+                var jsonResponse = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
                 return jsonResponse;
             }
 
@@ -74,7 +76,7 @@ namespace dayforce_assignment.Server.Services.Jira
                 throw new JiraBadRequestException(jiraKey);
             }
 
-            throw new JiraApiException((int)response.StatusCode, $"Unexpected Jira API error.");
+            throw new JiraApiException($"Unexpected Jira API error.");
         }
 
 

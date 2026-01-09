@@ -7,11 +7,11 @@ namespace dayforce_assignment.Server.Interfaces.Confluence
 {
     public interface IConfluenceSearchService
     {
-        Task<JsonElement> SearchPageAsync(string keywords);
+        Task<JsonElement> SearchPageAsync(string keywords, CancellationToken cancellationToken);
 
-        Task<ConfluencePageReferencesDto> FilterResultAsync(JiraIssueDto jiraStory, ConcurrentDictionary<string, ConfluencePage> searchResults);
+        Task<ConfluencePageReferencesDto> FilterResultAsync(JiraIssueDto jiraStory, ConcurrentDictionary<string, ConfluencePage> searchResults, CancellationToken cancellationToken);
 
-        Task<ConfluenceSearchParametersDto> GetParametersAsync(JiraIssueDto jiraStory);
+        Task<ConfluenceSearchParametersDto> GetParametersAsync(JiraIssueDto jiraStory, CancellationToken cancellationToken);
 
     }
 }

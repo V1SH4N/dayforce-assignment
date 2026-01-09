@@ -2,6 +2,7 @@
 using dayforce_assignment.Server.Exceptions;
 using dayforce_assignment.Server.Interfaces.Common;
 using dayforce_assignment.Server.Interfaces.Confluence;
+using dayforce_assignment.Server.Interfaces.EventSinks;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text.Json;
@@ -29,8 +30,9 @@ namespace dayforce_assignment.Server.Services.Confluence
         }
 
 
+
         // Creates confluence page summary.
-        public async Task<string> SummarizePageAsync(ConfluencePageDto confluencePage, string baseUrl, bool summarizeAttachment)
+        public async Task<string> SummarizePageAsync(ConfluencePageDto confluencePage, string baseUrl, bool summarizeAttachment, CancellationToken cancellationToken, ISseEventSink events)
         {
             string pageId = confluencePage.Id;
 
@@ -45,11 +47,11 @@ namespace dayforce_assignment.Server.Services.Confluence
             string systemPrompt = await File.ReadAllTextAsync(systemPromptPath);
 
             // Get Confluence attachments 
-            JsonElement jsonAttachments = await _confluenceHttpClientService.GetAttachmentsAsync(baseUrl, pageId);
+            JsonElement jsonAttachments = await _confluenceHttpClientService.GetAttachmentsAsync(baseUrl, pageId, cancellationToken);
+
             ConfluencePageAttachmentsDto confluencePageAttachments = _confluenceMapperService.MapAttachmentsToDto(jsonAttachments);
 
-
-            ChatHistory history = await BuildChatHistoryAsync(systemPrompt, confluencePage, confluencePageAttachments, summarizeAttachment);
+            ChatHistory history = await BuildChatHistoryAsync(systemPrompt, confluencePage, confluencePageAttachments, summarizeAttachment, cancellationToken, events);
 
             try
             {
@@ -59,9 +61,13 @@ namespace dayforce_assignment.Server.Services.Confluence
                 }
                 catch (HttpOperationException ex) when (ex.StatusCode.HasValue && (int)ex.StatusCode.Value == 413) // Error status code when chatHistory excees token limit
                 {
-                    history = await BuildChatHistoryAsync(systemPrompt, confluencePage, confluencePageAttachments, summarizeAttachment: true);
+                    history = await BuildChatHistoryAsync(systemPrompt, confluencePage, confluencePageAttachments, summarizeAttachment: true, cancellationToken, events);
                     response = await _chatCompletionService.GetChatMessageContentAsync(history);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex) when (ex is not DomainException)
             {
@@ -72,12 +78,16 @@ namespace dayforce_assignment.Server.Services.Confluence
         }
 
 
+
+
         // Builds chatHistory to summarize confluence page
         private async Task<ChatHistory> BuildChatHistoryAsync(
         string systemPrompt,
         ConfluencePageDto confluencePage,
         ConfluencePageAttachmentsDto confluencePageAttachments,
-        bool summarizeAttachment)
+        bool summarizeAttachment,
+        CancellationToken cancellationToken,
+        ISseEventSink events)
         {
             var history = new ChatHistory();
             var userPrompt = new ChatMessageContentItemCollection();
@@ -88,9 +98,17 @@ namespace dayforce_assignment.Server.Services.Confluence
             userPrompt.Add(new TextContent(JsonSerializer.Serialize(confluencePage, new JsonSerializerOptions { WriteIndented = true })));
 
 
-            if (confluencePageAttachments.Attachments?.Any() == true)
+            if (confluencePageAttachments.Attachments.Any() == true)
             {
-                await AddConfluenceAttachment(userPrompt, confluencePageAttachments, summarizeAttachment);
+                try
+                {
+                    await AddConfluenceAttachment(userPrompt, confluencePageAttachments, summarizeAttachment, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception) { }
             }
 
             history.AddUserMessage(userPrompt);
@@ -98,8 +116,10 @@ namespace dayforce_assignment.Server.Services.Confluence
         }
 
 
-        // Adds confluence page attachment to user prompt. (Summarizes image attachments if summarizeAttachment is true.)
-        private async Task AddConfluenceAttachment(ChatMessageContentItemCollection userPrompt, ConfluencePageAttachmentsDto confluencePageAttachments, bool summarizeAttachment)
+
+        // Adds confluence page attachment to user prompt.
+        // Summarizes image attachments if summarizeAttachment is true.
+        private async Task AddConfluenceAttachment(ChatMessageContentItemCollection userPrompt, ConfluencePageAttachmentsDto confluencePageAttachments, bool summarizeAttachment, CancellationToken cancellationToken)
         {
             userPrompt.Add(new TextContent("Confluence page attachments:\n"));
 
@@ -107,7 +127,7 @@ namespace dayforce_assignment.Server.Services.Confluence
             {
                 if (summarizeAttachment)
                 {
-                    var summarizedAttachments = await _attachmentService.SummarizeAttachmentListAsync(confluencePageAttachments.Attachments);
+                    var summarizedAttachments = await _attachmentService.SummarizeAttachmentListAsync(confluencePageAttachments.Attachments, cancellationToken);
                     foreach (var attachment in summarizedAttachments)
                     {
                         userPrompt.Add(new TextContent(attachment));
@@ -115,7 +135,7 @@ namespace dayforce_assignment.Server.Services.Confluence
                 }
                 else
                 {
-                    var downloadedAttachments = await _attachmentService.DownloadAttachmentListAsync(confluencePageAttachments.Attachments);
+                    var downloadedAttachments = await _attachmentService.DownloadAttachmentListAsync(confluencePageAttachments.Attachments, cancellationToken);
                     foreach (var attachment in downloadedAttachments)
                     {
                         userPrompt.Add((attachment));
@@ -123,6 +143,7 @@ namespace dayforce_assignment.Server.Services.Confluence
                 }
             }
         }
+
 
 
 

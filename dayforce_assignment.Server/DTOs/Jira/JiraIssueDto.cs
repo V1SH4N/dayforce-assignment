@@ -1,5 +1,4 @@
 ﻿using dayforce_assignment.Server.DTOs.Common;
-using System.Xml;
 
 namespace dayforce_assignment.Server.DTOs.Jira
 {

@@ -16,6 +16,9 @@ namespace dayforce_assignment.Server.Services.Jira
             _customFieldService = customFieldService;
         }
 
+
+
+
         // Maps json issue to JiraIssueDto
         public JiraIssueDto MapIssueToDto(JsonElement jsonIssue, JsonElement jsonRemoteLinks)
         {
@@ -95,7 +98,6 @@ namespace dayforce_assignment.Server.Services.Jira
             {
                 foreach (JsonElement issueLink in issueLinksProp.EnumerateArray())
                 {
-                    // Check if outwardIssue exists
                     if (issueLink.TryGetProperty("outwardIssue", out JsonElement outwardIssueProp) &&
                         outwardIssueProp.TryGetProperty("key", out var outwardIssuekeyProp)&&
                         outwardIssueProp.TryGetProperty("fields", out var outwardIssueFieldsProp) &&
@@ -140,7 +142,6 @@ namespace dayforce_assignment.Server.Services.Jira
             var sbDescription = new StringBuilder();
             foreach (var prop in fieldsProp.EnumerateObject())
             {
-                // Skip the Acceptance Criteria field
                 if (prop.Name == acceptanceCriteriaFieldId)
                     continue;
 
@@ -207,6 +208,8 @@ namespace dayforce_assignment.Server.Services.Jira
 
             return dto;
         }
+
+
 
 
         // Maps json triage subtask to TriageSubtaskDto
@@ -286,6 +289,9 @@ namespace dayforce_assignment.Server.Services.Jira
         }
 
 
+
+
+        // Extracts text content from json element (of type "doc")
         private static void ExtractTextFromDocType(JsonElement node, StringBuilder sb, int indentLevel = 0)
         {
             if (node.ValueKind != JsonValueKind.Object) return;
@@ -331,6 +337,7 @@ namespace dayforce_assignment.Server.Services.Jira
             }
         }
         
+
 
 
     }

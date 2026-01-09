@@ -5,7 +5,6 @@ using dayforce_assignment.Server.Interfaces.Common;
 using dayforce_assignment.Server.Interfaces.Confluence;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
@@ -33,8 +32,9 @@ namespace dayforce_assignment.Server.Services.Confluence
         }
 
 
+
         // Searches for confluence pages.
-        public async Task<JsonElement> SearchPageAsync(string cql)
+        public async Task<JsonElement> SearchPageAsync(string cql, CancellationToken cancellationToken)
         {
             var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
 
@@ -44,13 +44,13 @@ namespace dayforce_assignment.Server.Services.Confluence
             var baseUri = new Uri(_baseUrl);
             var url = $"wiki/rest/api/content/search?cql={encodedCql}&limit=10";
 
-            HttpResponseMessage response = await httpClient.GetAsync(new Uri(baseUri, url));
+            HttpResponseMessage response = await httpClient.GetAsync(new Uri(baseUri, url), cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
-                var jsonResponse = await response.Content.ReadFromJsonAsync<JsonElement>();
+                var jsonResponse = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
                 if (jsonResponse.ValueKind == JsonValueKind.Undefined)
-                    throw new ConfluenceApiException((int)response.StatusCode, $"Confluence search returned an empty response for CQL: {cql}.");
+                    throw new ConfluenceApiException($"Confluence search returned an empty response.");
                 return jsonResponse;
             }
 
@@ -62,39 +62,43 @@ namespace dayforce_assignment.Server.Services.Confluence
                 throw new ConfluenceSearchBadRequestException();
             }
 
-            throw new ConfluenceApiException((int)response.StatusCode, $"Unexpected Confluence search API error.");
+            throw new ConfluenceApiException($"Unexpected Confluence search API error.");
 
         }
 
 
-        // Gets search paramters. Returns new ConfluenceSearcParametersDto initialized with empty list if no parameters found.
-        public async Task<ConfluenceSearchParametersDto> GetParametersAsync(JiraIssueDto jiraIssue)
+
+        // Gets search paramters.
+        // Returns new ConfluenceSearcParametersDto initialized with empty list if no parameters found.
+        public async Task<ConfluenceSearchParametersDto> GetParametersAsync(JiraIssueDto jiraIssue, CancellationToken cancellationToken)
         {
             
                 var dto = new ConfluenceSearchParametersDto();
 
                 var history = new ChatHistory();
 
-                string systemPromptPath = "SystemPrompts/ConfluencePageSearchParameterV4.txt";   // v4 and v5 still untested
+                string systemPromptPath = "SystemPrompts/ConfluencePageSearchParameter.txt";
 
                 if (!File.Exists(systemPromptPath))
                     throw new FileNotFoundException($"System prompt file not found: {systemPromptPath}");
 
-                string systemPrompt = await File.ReadAllTextAsync(systemPromptPath);
-
+                string systemPrompt = await File.ReadAllTextAsync(systemPromptPath, cancellationToken);
 
                 history.AddSystemMessage(systemPrompt);
 
                 history.AddUserMessage(JsonSerializer.Serialize(jiraIssue));
 
-
                 var response = new ChatMessageContent();
 
             try
                 {
-                    response = await _chatCompletionService.GetChatMessageContentAsync(history);
+                    response = await _chatCompletionService.GetChatMessageContentAsync(chatHistory: history, cancellationToken:cancellationToken);
                 }
-                catch (Exception)
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception)
                 {
                     throw new ConfluenceSearchParameterException($"Failed to get search parameters from AI for Jira issue {jiraIssue.Key}");
                 }
@@ -119,8 +123,10 @@ namespace dayforce_assignment.Server.Services.Confluence
         }
 
 
-        // Filters search result. Returns new ConfluenceSearchResultsDto initialized with empty list if no relevant confluence pages found.
-        public async Task<ConfluencePageReferencesDto> FilterResultAsync(JiraIssueDto jiraIssue, ConcurrentDictionary<string, ConfluencePage> searchResults)
+
+        // Filters search result.
+        // Returns new ConfluenceSearchResultsDto initialized with empty list if no relevant confluence pages found.
+        public async Task<ConfluencePageReferencesDto> FilterResultAsync(JiraIssueDto jiraIssue, ConcurrentDictionary<string, ConfluencePage> searchResults, CancellationToken cancellationToken)
         {
             if (searchResults.IsEmpty)
                 return new ConfluencePageReferencesDto();
@@ -129,12 +135,12 @@ namespace dayforce_assignment.Server.Services.Confluence
 
             var history = new ChatHistory();
 
-            string systemPromptPath = "SystemPrompts/ConfluencePageSearchFilterV2.txt";
+            string systemPromptPath = "SystemPrompts/ConfluencePageSearchFilter.txt";
 
             if (!File.Exists(systemPromptPath))
                 throw new FileNotFoundException($"System prompt file not found: {systemPromptPath}");
 
-            string systemPrompt = await File.ReadAllTextAsync(systemPromptPath);
+            string systemPrompt = await File.ReadAllTextAsync(systemPromptPath, cancellationToken);
 
 
             history.AddSystemMessage(systemPrompt);
@@ -147,7 +153,11 @@ namespace dayforce_assignment.Server.Services.Confluence
 
             try
             {
-                response = await _chatCompletionService.GetChatMessageContentAsync(history);
+                response = await _chatCompletionService.GetChatMessageContentAsync(chatHistory: history, cancellationToken: cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception)
             {

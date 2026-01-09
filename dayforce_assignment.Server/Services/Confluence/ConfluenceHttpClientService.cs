@@ -14,18 +14,21 @@ namespace dayforce_assignment.Server.Services.Confluence
         }
 
 
-        // Gets confluence page json. Throws exception if not found.
-        public async Task<JsonElement> GetPageAsync(string baseUrl, string id)
+
+
+        // Gets confluence page json.
+        // Throws exception if not found.
+        public async Task<JsonElement> GetPageAsync(string baseUrl, string id, CancellationToken cancellationToken)
         {
             var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
-            HttpResponseMessage response = await httpClient.GetAsync(new Uri(new Uri(baseUrl), $"wiki/api/v2/pages/{id}?body-format=storage"));
+            HttpResponseMessage response = await httpClient.GetAsync(new Uri(new Uri(baseUrl), $"wiki/api/v2/pages/{id}?body-format=storage"), cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
                 var jsonResponse = await response.Content.ReadFromJsonAsync<JsonElement>();
                 if (jsonResponse.ValueKind == JsonValueKind.Undefined)
                 {
-                    throw new ConfluenceApiException((int)response.StatusCode, $"Confluence returned an empty response for page {id}.");
+                    throw new ConfluenceApiException($"Confluence returned an empty response for page {id}.");
                 }
                 return jsonResponse;
             }
@@ -41,21 +44,24 @@ namespace dayforce_assignment.Server.Services.Confluence
                 throw new ConfluenceBadRequestException(id);
             }
 
-            throw new ConfluenceApiException((int)response.StatusCode, $"Unexpected Confluence API error.");
+            throw new ConfluenceApiException($"Unexpected Confluence API error.");
         }
 
 
-        // Get confluence page attachments json (includes download link, media type & filename). Throws exception if not found.
-        public async Task<JsonElement> GetAttachmentsAsync(string baseUrl, string id)
+
+
+        // Gets confluence page attachments json (includes download link, media type & filename).
+        // Throws exception if not found.
+        public async Task<JsonElement> GetAttachmentsAsync(string baseUrl, string id, CancellationToken cancellationToken)
         {
             var httpClient = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
-            HttpResponseMessage response = await httpClient.GetAsync(new Uri(new Uri(baseUrl), $"wiki/api/v2/pages/{id}/attachments"));
+            HttpResponseMessage response = await httpClient.GetAsync(new Uri(new Uri(baseUrl), $"wiki/api/v2/pages/{id}/attachments"), cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
                 var jsonResponse = await response.Content.ReadFromJsonAsync<JsonElement>();
                 if (jsonResponse.ValueKind == JsonValueKind.Undefined)
-                    throw new ConfluenceApiException((int)response.StatusCode, $"Confluence returned an empty response for attachments of page {id}.");
+                    throw new ConfluenceApiException($"Confluence returned an empty response for attachments of page {id}.");
 
                 return jsonResponse;
             }
@@ -70,21 +76,24 @@ namespace dayforce_assignment.Server.Services.Confluence
             if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
                 throw new ConfluenceBadRequestException(id);
             
-            throw new ConfluenceApiException((int)response.StatusCode, $"Unexpected Confluence API error.");
+            throw new ConfluenceApiException($"Unexpected Confluence API error.");
         }
 
 
-        // Get json confluence page comments json. Throws exception if not found.
-        public async Task<JsonElement> GetCommentsAsync(string baseUrl, string id)
+
+
+        // Get json confluence page comments json.
+        // Throws exception if not found.
+        public async Task<JsonElement> GetCommentsAsync(string baseUrl, string id, CancellationToken cancellationToken)
         {
             var client = _httpClientFactory.CreateClient("AtlassianAuthenticatedClient");
-            HttpResponseMessage response = await client.GetAsync(new Uri(new Uri(baseUrl), $"wiki/api/v2/pages/{id}/footer-comments?body-format=storage"));
+            HttpResponseMessage response = await client.GetAsync(new Uri(new Uri(baseUrl), $"wiki/api/v2/pages/{id}/footer-comments?body-format=storage"), cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
                 var jsonResponse = await response.Content.ReadFromJsonAsync<JsonElement>();
                 if (jsonResponse.ValueKind == JsonValueKind.Undefined)
-                    throw new ConfluenceApiException((int)response.StatusCode, $"Confluence returned an empty response for comments on page {id}.");
+                    throw new ConfluenceApiException($"Confluence returned an empty response for comments on page {id}.");
 
                 return jsonResponse;
             }
@@ -98,8 +107,9 @@ namespace dayforce_assignment.Server.Services.Confluence
             if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
                 throw new ConfluenceBadRequestException(id);
 
-            throw new ConfluenceApiException((int)response.StatusCode, $"Unexpected Confluence API error.");
+            throw new ConfluenceApiException($"Unexpected Confluence API error.");
         }
+
 
 
 

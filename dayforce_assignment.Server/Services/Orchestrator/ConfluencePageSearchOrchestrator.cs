@@ -21,20 +21,24 @@ namespace dayforce_assignment.Server.Services.Orchestrator
             _baseUrl = configuration["Atlassian:BaseUrl"] ?? throw new AtlassianConfigurationException("Default Atlassian base URL is not configured.");
         }
 
-        public async Task<ConfluencePageReferencesDto> SearchConfluencePageReferencesAsync(JiraIssueDto jiraIssue, ConfluencePageReferencesDto confluencePagereferences)
+
+        public async Task<ConfluencePageReferencesDto> SearchConfluencePageReferencesAsync(JiraIssueDto jiraIssue, ConfluencePageReferencesDto confluencePagereferences, CancellationToken cancellationToken)
         {
+
             // Get search query parameters
-            ConfluenceSearchParametersDto searchParametersList = await _confluenceSearchService.GetParametersAsync(jiraIssue);
+            ConfluenceSearchParametersDto searchParametersList = await _confluenceSearchService.GetParametersAsync(jiraIssue, cancellationToken);
 
             if (!searchParametersList.SearchParameters.Any())
                 return confluencePagereferences;
+
+
 
             // Execute search tasks in parallel
             var searchResults = new ConcurrentDictionary<string, ConfluencePage>();
 
             var searchTasks = searchParametersList.SearchParameters.Select(async searchParameter =>
             {
-                JsonElement searchResponse = await _confluenceSearchService.SearchPageAsync(searchParameter);
+                JsonElement searchResponse = await _confluenceSearchService.SearchPageAsync(searchParameter, cancellationToken);
 
                 if (searchResponse.TryGetProperty("results", out JsonElement results))
                 {
@@ -57,8 +61,10 @@ namespace dayforce_assignment.Server.Services.Orchestrator
 
             await Task.WhenAll(searchTasks);
 
+
+
             // Filter search results
-            ConfluencePageReferencesDto filteredSearchResults = await _confluenceSearchService.FilterResultAsync(jiraIssue, searchResults);
+            ConfluencePageReferencesDto filteredSearchResults = await _confluenceSearchService.FilterResultAsync(jiraIssue, searchResults, cancellationToken);
 
             foreach (ConfluencePage result in filteredSearchResults.ConfluencePages.Values)
             {
@@ -69,7 +75,11 @@ namespace dayforce_assignment.Server.Services.Orchestrator
                 });   
             }
 
+
+
+
             return confluencePagereferences;
+
         }
     }
 }

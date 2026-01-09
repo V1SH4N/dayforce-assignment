@@ -13,16 +13,16 @@ namespace dayforce_assignment.Server.Services.Confluence
         // Maps confluence page & comments to ConfluencePageDto
         public ConfluencePageDto MapPageToDto(JsonElement confluencePage, JsonElement confluenceComments)
         {
-            // Extract page ID
+            // Page ID
             string pageId = confluencePage.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? string.Empty : string.Empty;
 
-            // Extract title
+            // Page title
             string title = confluencePage.TryGetProperty("title", out var titleProp) ? titleProp.GetString() ?? string.Empty : string.Empty;
 
-            // Extract page body
+            // Page body
             var pageBody = ExtractBodyValue(confluencePage);
 
-            // Extract comments body into a list
+            // Page comments
             var commentsList = new List<string>();
             if (confluenceComments.ValueKind != JsonValueKind.Undefined &&
                 confluenceComments.ValueKind != JsonValueKind.Null &&
@@ -60,6 +60,7 @@ namespace dayforce_assignment.Server.Services.Confluence
             return string.Empty;
         }
 
+
         private static string CleanHtml(string html)
         {
             var doc = new HtmlDocument();
@@ -94,6 +95,7 @@ namespace dayforce_assignment.Server.Services.Confluence
 
 
 
+
         // Maps confluence attachments to ConfluencePageAttachmentsDto
         public ConfluencePageAttachmentsDto MapAttachmentsToDto(JsonElement payload)
         {
@@ -103,11 +105,11 @@ namespace dayforce_assignment.Server.Services.Confluence
             if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
                 return dto;
 
-            // Get base URL
+            // Base URL
             string baseUrl = GetStringProperty(payload, "_links", "base") ?? string.Empty;
             if (string.IsNullOrWhiteSpace(baseUrl))
                 return dto;
-            // Get attachments array
+            // Attachments array
             if (!payload.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)
                 return dto;
 
@@ -137,6 +139,7 @@ namespace dayforce_assignment.Server.Services.Confluence
             return dto;
         }
 
+
         private static string GetStringProperty(JsonElement element, string propertyName)
         {
             if (element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String)
@@ -151,6 +154,10 @@ namespace dayforce_assignment.Server.Services.Confluence
                 return GetStringProperty(parentProp, childProperty);
             return string.Empty;
         }
+
+
+
+
 
     }
     
