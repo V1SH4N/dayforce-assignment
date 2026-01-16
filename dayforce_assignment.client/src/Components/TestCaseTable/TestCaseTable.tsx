@@ -1,5 +1,5 @@
 import React from "react";
-import type { TestCase } from "../../types/types";
+import type { TestCase } from "../../CommonInterfaces/Interfaces";
 import DownloadButton from "../Button/DownloadButton";
 import "./TestCaseTable.css";
 

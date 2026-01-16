@@ -124,12 +124,19 @@ namespace dayforce_assignment.Server.Services.Orchestrator
                     if (string.IsNullOrEmpty(token.Content))
                         continue;
 
-                    Console.Write($"\n{token.Content.ToString()}");
-
                     buffer.Append(token.Content);
                     string bufferString = buffer.ToString();
 
                     // Logic to parse individual test cases from streaming chat content.
+
+
+                    // I think the following logic is why the app crashed during the final demo. (need to confirm)
+                    // Basically, what i did was extract the substring starting from the first '{' till the first '}' from the buffer string.
+                    // The logic worked, because
+                    //          1) in the system message, i instructed the llm to output each test case as a seperate json object.
+                    //          2) I also instrcuted the llm to not include any curly braces inside the strings of the test cases. (this is not robust enough)
+                    // However, the reason it failed during the demo was because it included curly braces inside the test cases string which threw the error.
+
                     while (true)
                     {
                         startIndex = bufferString.IndexOf('{');

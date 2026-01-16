@@ -20,7 +20,7 @@ Each query must target the page title field. Queries should be precise enough to
    - Determine keywords or phrases that represent missing information critical for test case design.
 
 2. Keyword & CamelCase Variant Extraction
-   - Extract 3–5 meaningful keywords or short phrases from the story and identified gaps.
+   - Extract meaningful keywords or short phrases from the story and identified gaps.
    - For each keyword/short phrase (≤2 words), generate CamelCase variants.
    - Append * as a wildcard.    
    - Example: "Delete client container" → "DeleteClient*", "ClientDelete*", "DeleteContainer*", "ContainerDelete*".

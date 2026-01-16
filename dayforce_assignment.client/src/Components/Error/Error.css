@@ -1,7 +1,6 @@
 .errorPage {
     height: 100vh;
     display: flex;
-    flex-direction: column;
     justify-content: center;
     align-items: center;
 }
@@ -15,5 +14,17 @@
 .errorDetail {
     font-size: 1.1rem;
     color: #555;
+}
+
+.errorContainer {
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    border: 1px solid rgb(205, 205, 205);
+    padding: 3rem;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 

@@ -4,7 +4,7 @@ import type { TestCase } from "../../CommonInterfaces/Interfaces";
 import "./TestCaseEventListener.css"
 
 interface TestCaseEventListenerProps {
-  eventSource: EventSource;
+  eventSource: EventSource | null;
   jiraKey?: string;
 }
 

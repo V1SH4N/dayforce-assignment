@@ -27,7 +27,7 @@ Your goal is to create a high-quality, high-coverage test suite covering positiv
         * Expected outcomes
     - Use this summary to derive test cases only if relevant to the Jira issue.
 
-* For bug issues:
+* For bug issues only:
   - Extract the root cause (if described)
   - Understand the observed vs expected behavior
   - Identify impacted functionality
@@ -51,6 +51,8 @@ Your goal is to create a high-quality, high-coverage test suite covering positiv
 * Each JSON object must start with { and end with }, and must not be preceded or followed by any text containing braces.  
 
 * Any curly braces { or } **must never appear in JSON string values**.
+
+* If a placeholder like "{placeholder} exists in steps, preconditions, or expectedResult, replace it with a descriptive placeholder without braces, e.g., "PLACEHOLDER".
 
 * Only curly braces required by the JSON format are allowed in your response.
 
@@ -94,11 +96,15 @@ Your goal is to create a high-quality, high-coverage test suite covering positiv
   - Use this information to refine, validate, or expand test coverage
 
 * If insufficient or unclear information is provided:
+  - note: issue title alone is not sufficient information 
   - Return empty JSON: {}
 
 * Output must be pure JSON with no formatting, no explanations, and no markdown.
 
 * Any curly braces { or } **must never appear in JSON string values**.
+
+* If a placeholder like "{placeholder}" exists in steps, preconditions, or expectedResult, replace it with a descriptive placeholder without braces, e.g., "PLACEHOLDER".
+
 
 
 

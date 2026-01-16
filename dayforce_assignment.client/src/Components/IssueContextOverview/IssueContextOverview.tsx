@@ -116,8 +116,9 @@ const ItemRow: React.FC<{ item: ItemState }> = memo(({ item }) => {
 });
 
 interface IssueContextOverviewProps {
-  eventSource: EventSource;
+    eventSource: EventSource | null;
 }
+
 
 const IssueContextOverview: React.FC<IssueContextOverviewProps> = ({ eventSource }) => {
   const [jiraKey, setJiraKey] = useState("");

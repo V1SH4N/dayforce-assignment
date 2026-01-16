@@ -182,14 +182,6 @@ namespace dayforce_assignment.Server.Exceptions
         }
     }
 
-    public class ConfluencePageReferenceExtractionException : ConfluenceException
-    {
-        public ConfluencePageReferenceExtractionException(string message)
-            : base(message, HttpStatusCode.InternalServerError)
-        {
-        }
-    }
-
     public class ConfluenceSearchParameterException : ConfluenceException
     {
         public ConfluenceSearchParameterException(string message)

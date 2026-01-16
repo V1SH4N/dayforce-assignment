@@ -14,10 +14,12 @@ const Error: React.FC<ErrorProps> = ({ title, detail, statusCode }) => {
   const navigate = useNavigate();
 
   return (
-    <div className="errorPage">
-      <h1 className="errorTitle">{`Error ${statusCode}: ${title}`}</h1>
-      <p className="errorDetail">{detail}</p>
-      <BackButton onClick={() => navigate("/")} />
+      <div className="errorPage">
+          <div className="errorContainer">
+              <h1 className="errorTitle">{`Error ${statusCode}: ${title}`}</h1>
+              <p className="errorDetail">{detail}</p>
+              <BackButton onClick={() => navigate("/")} />
+          </div>
     </div>
   );
 };
